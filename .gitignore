@@ -21,6 +21,8 @@
 *.xlsx
 # Papers
 *.pdf
+# Not public datasets
+data/Klebsiellas_RamónyCajal_D1-D3-1/
 
 # Packing-only formats
 *.iso
@@ -37,4 +39,6 @@
 *.msm
 *.msp
 *.txz
+
+/old/
 
