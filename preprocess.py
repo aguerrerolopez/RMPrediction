@@ -2,7 +2,6 @@ import numpy as np
 
 def load_data(path, format=None, train_test_split=True):
 
-
     if format == "mzml":
         from pyteomics import mzml
         from os import listdir

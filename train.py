@@ -8,6 +8,21 @@ import pickle
 
 
 def train(model, model_name, x, y, labels_list, save_path=None, folds=10, th=0.5):
+    """
+    Train method. Given a model to train and the data to use, this method trains the model for "k" stratified folds. Then
+    it saves the results in the path given.
+    :param model: model class. Expects a model class, i.e. GPC, SVC, LR.
+    :param model_name: str. Name used to save the results and the model itself.
+    :param x: numpy array, size NxD. Expects a numpy array with the spectra data of size NxD.
+    :param y: numpy array, size NxC. Expects a numpy array of multilabel targets of size NxC being C the number of
+    categories to predict.
+    :param labels_list: list, size 1xC. Expects a list with the name of each category to classify.
+    :param save_path: str or PathLike. Path to the directory where do you want to save the model.
+    :param folds: int, default 10. Number of folds to do the cross-validation.
+    :param th: int, default 0.5. Threshold to do the classification. If the probability of belong to a C_i class is above
+    the threshold, this class is the predicted.
+    :return: None.
+    """
     if save_path is None:
         save_path = "./Results/" + model_name
     else:
@@ -58,7 +73,8 @@ def train(model, model_name, x, y, labels_list, save_path=None, folds=10, th=0.5
             # Calculate and store the results
             # scores["Y_pred"][c, i, :] = y_pred_1
             # scores["Y_true"][c, i, :] = y_tst_1
-            scores["feat_rank"][c, i, :] = model.coef_
+            if model_name != "GP":
+                scores["feat_rank"][c, i, :] = model.coef_
             if len(set(y_tst_1))>1:
                 scores["AUC"][c, i] = roc_auc_score(y_tst_1, y_pred_1)
                 y_pred_b = y_pred_1 > th
