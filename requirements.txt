@@ -1,0 +1,9 @@
+pyteomics==4.3.3
+plotly==4.12.0
+matplotlib==3.3.2
+numpy==1.19.2
+scipy==1.5.2
+msalign==0.1.10
+BaselineRemoval==0.0.6
+impyute==0.0.8
+scikit_learn==0.23.2

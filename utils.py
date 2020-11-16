@@ -1,10 +1,9 @@
 from matplotlib import pyplot as plt
-import json
 import pickle
 import numpy as np
 from sklearn.metrics import roc_curve, auc
 import os
-# from joblib import dump, load
+
 
 def plot_sample(data_mz, data_int):
     plt.figure(figsize=(12, 4))
@@ -12,6 +11,7 @@ def plot_sample(data_mz, data_int):
     plt.title('Example of MALDI espectra')
     plt.xlabel('MZ')
     plt.ylabel('Intensity')
+
 
 def save_results(model_name, model, y_pred, y_true, scores):
     path_to_save="./Results/"+model_name
@@ -22,7 +22,6 @@ def save_results(model_name, model, y_pred, y_true, scores):
         pickle.dump(y_pred, f)
     with open(path_to_save + '/scores.pkl', 'wb') as f:
         pickle.dump(scores, f)
-
 
 
 def load_results(main_folder, labels, file, print_r=True, plot=True, store=True):
@@ -63,13 +62,15 @@ def load_results(main_folder, labels, file, print_r=True, plot=True, store=True)
 
 # metrics
 
+
 def false_positive_rate_one_cat(Y_test, predictions):
     false_pos = np.sum(np.logical_and(Y_test == 0, predictions == 1), axis=0)
     if np.sum(np.sum(Y_test == 0, axis=0)) == 0:
         print('Division by zero. There are only Resistant samples. FPR cannot be evaluated')
+        return None
     else:
         false_pos_rate = false_pos / np.sum(Y_test == 0, axis=0)  ##False alarm
-    return false_pos_rate
+        return false_pos_rate
 
 
 def false_negative_rate_one_cat(Y_test, predictions):
@@ -94,7 +95,7 @@ def false_negative_rate(Y_test, predictions):
 
 
 def evaluate(Y_test, preds_cv, categories):
-    from sklearn.metrics import roc_auc_score, auc, accuracy_score, classification_report, confusion_matrix
+    from sklearn.metrics import roc_auc_score, accuracy_score
 
     preds = preds_cv > 0.5
 
@@ -102,7 +103,7 @@ def evaluate(Y_test, preds_cv, categories):
 
     detected = np.sum(preds, axis=0)
 
-    detection_perc = detected / total_samples * 100;
+    detection_perc = detected / total_samples * 100
 
     false_pos = np.sum(np.logical_and(Y_test == 0, preds == 1), axis=0)
     false_pos_rate = false_pos / np.sum(Y_test == 0, axis=0) * 100  ##False alarm
@@ -142,7 +143,7 @@ def evaluate(Y_test, preds_cv, categories):
     bar_plot(false_neg_rate, 'Ratio de pérdidas')
 
 
-## Graphs
+# Graphs
 def bar_plot(ratio, name, categories, store=False, store_name="default"):
     ax = plt.figure(figsize=(12, 6))
     plt.bar(range(len(categories)), ratio, tick_label=categories)
@@ -353,8 +354,7 @@ def plot_curve_auc_roc_in_CV(trues, preds, antibiotic_list):
     plt.show()
 
     ############
-    ############  Para Comparative
-
+    # Para Comparative
 
 def retrieve_general_results(path):
     # Get the name and path of each file stored in the general directory /Models
@@ -371,6 +371,9 @@ def retrieve_general_results(path):
         results[model] = load_results_from_files(path)
         # models_names.append(model)
     return results
+
+def load_results_from_files(path):
+    pass
 
 
 def extract_parameter(results, parameter_name):
