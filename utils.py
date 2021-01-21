@@ -3,6 +3,19 @@ import pickle
 import numpy as np
 from sklearn.metrics import roc_curve, auc
 import os
+from sklearn.model_selection import KFold
+
+
+def create_folds(x, y, n_folds=10, path="folds.pkl"):
+    kf = KFold(n_splits=n_folds, shuffle=True, random_state=0)
+    folds = {'train': [], 'test': []}
+    for train_index, test_index in kf.split(x, y):
+        folds['train'].append(train_index)
+        folds['test'].append(test_index)
+    with open(path, 'wb') as f:
+        pickle.dump(folds, f)
+
+
 
 
 def plot_sample(data_mz, data_int):

@@ -36,7 +36,7 @@ def load_data(path, format=None, train_test_split=True):
         return df_data
 
 
-def prepare_data(df, impute=False, drop=False, columns_drop=None, n_labels=0, remove_baseline=False, normalize=None,
+def prepare_data(df, hospital="gm", impute=False, drop=False, columns_drop=None, n_labels=0, remove_baseline=False, normalize=None,
                       limits = [0, 20000]):
     """
     :param df: Dataframe object. Data to clean and prepare.
@@ -54,7 +54,10 @@ def prepare_data(df, impute=False, drop=False, columns_drop=None, n_labels=0, re
     from sklearn.preprocessing import StandardScaler
 
     # Extract the labels values and drop the ones you dont need.
-    labels_name = df.columns[-(n_labels + 1):-1]
+    if hospital == "gm":
+        labels_name = df.columns[-(n_labels + 1):-1]
+    else:
+        labels_name = df.columns[-n_labels:]
     y = df[labels_name]
     if drop:
         y = y.drop(columns=columns_drop)
@@ -72,8 +75,12 @@ def prepare_data(df, impute=False, drop=False, columns_drop=None, n_labels=0, re
 
 
     # Extract the intensity values and align them all.
-    spectra_raw, coord_mz = equal_mz(df, samples=1, limits=limits)
-    spectra_norm = spectra_raw.copy()
+    if hospital == "gm":
+        spectra_raw, coord_mz = equal_mz(df, samples=1, limits=limits)
+        spectra_norm = spectra_raw.copy()
+    else:
+        spectra_raw = np.vstack(df["maldi"].values)
+        spectra_norm = spectra_raw.copy()
     if normalize == "TIC":
         for i in range(spectra_norm.shape[0]):
             TIC = np.sum(spectra_raw[i])
@@ -97,9 +104,12 @@ def prepare_data(df, impute=False, drop=False, columns_drop=None, n_labels=0, re
         spectra_raw = peak_alineation(intensity_to_align_array, coord_mz)
 
     scaler = StandardScaler()
-    spectra = scaler.fit_transform(spectra_raw.copy())
+    spectra = scaler.fit_transform(spectra_norm)
 
-    return spectra, coord_mz, y, labels_name
+    if hospital == "gm":
+        return spectra, coord_mz, y, labels_name
+    else:
+        return spectra, y, labels_name
 
 # TODO:eliminar fors de esta función, son innecesarios
 def peak_alineation(spectra, new_coord_mz_axis):

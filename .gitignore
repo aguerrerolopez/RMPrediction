@@ -22,8 +22,7 @@
 # Papers
 *.pdf
 # Not public datasets
-data/Klebsiellas_RamónyCajal_D1-D3-1/
-
+data/
 # Packing-only formats
 *.iso
 *.tar
@@ -42,3 +41,4 @@ data/Klebsiellas_RamónyCajal_D1-D3-1/
 
 /old/
 
+/wandb/
