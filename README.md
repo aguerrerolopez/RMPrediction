@@ -45,7 +45,7 @@ The class run_baselines.py basically runs all the baselines proposed in this pro
 - Gaussian Process Classifier: just with a cross-validation of the kernel used.
 
 ## SSHIBA model:
-The model proposed to learn the data is **SSHIBA** [[1]](#1). There are 3 scripts that run this model
+The model proposed to learn the data is **SSHIBA** [[1]](#1)[[2]](#2). There are 3 scripts that run this model
 in the three scenarios we have proposed:
 * GM_model.py: learn a SSHIBA model focused on GM data.
 * RYC_model.py: learn a SSHIBA model focused on RyC data.
@@ -64,3 +64,8 @@ All scripts not present in previous sections are miscellanea used to simplify/he
 Sevilla-Salcedo, Carlos, Vanessa Gómez-Verdejo, and Pablo M. Olmos. 
 "Sparse Semi-supervised Heterogeneous Interbattery Bayesian Analysis." 
 arXiv preprint arXiv:2001.08975 (2020).
+
+<a id="2">[2]</a>
+Sevilla-Salcedo, C., Guerrero-López, A., Olmos, P. M., & Gómez-Verdejo, V. (2020). 
+Bayesian Sparse Factor Analysis with Kernelized Observations. 
+arXiv preprint arXiv:2006.00968.
