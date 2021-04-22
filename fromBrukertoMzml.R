@@ -11,7 +11,7 @@ args <- commandArgs(trailingOnly = TRUE)
 ## MALDIquant()
 ## MALDIquantForeign()
 ##
-## install.packages(c("MALDIquant","MALDIquantForeign"))
+# install.packages(c("MALDIquant","MALDIquantForeign"))
 ###############################################################################
 
 library("MALDIquant")
@@ -20,16 +20,19 @@ library("MALDIquantForeign")
 ###############################################################################
 ## Load data
 ###############################################################################
-path <- "data/"
-path_load <- paste0(path, args[1])
+path <- "/Users/alexjorguer/Downloads/cepas"
+path_load <- paste0(path, '/Cepas_Analizadas_Sensibles')
+# path_load <- paste0(path, args[1])
 spectra1 <- importBrukerFlex(path_load)
 
 ###############################################################################
 ## Save data
 ###############################################################################
-path_save <- paste0(path, args[2])
+path_save <- paste0(path, '/mzml/')
+# path_save <- paste0(path, args[2])
 ## Save Rdata object
-save(spectra1, file=args[2])
+save(spectra1, file='mzml')
+# save(spectra1, file=args[2])
 
 ## Export
 exportMzMl(spectra1, path=path_save)

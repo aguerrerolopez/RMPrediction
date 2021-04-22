@@ -1,84 +1,80 @@
-import numpy as np
-# import preprocess_data as pp
 import pickle
 import sys
-from sklearn.model_selection import KFold
+import numpy as np
 
-sys.path.insert(0, "./ksshiba")
-from ksshiba import fast_fs_ksshiba_b as ksshiba
+sys.path.insert(0, "./lib")
+from lib import fast_fs_ksshiba_b_ord as ksshiba
 
-# Load both data
-gm_path = "./data/old_data/"
-ryc_path = "./data/Klebsiellas_RyC/"
-
-with open("./data/ryc_data_both.pkl", 'rb') as pkl:
-    ryc_full_data = pickle.load(pkl)
-with open("./data/gm_data_both.pkl", 'rb') as pkl:
+with open("./data/gm_data_TIC.pkl", 'rb') as pkl:
     gm_data = pickle.load(pkl)
+with open("./data/ryc_data_TIC.pkl", 'rb') as pkl:
+    ryc_data = pickle.load(pkl)
 
-# gm_data, ryc_full_data = pp.process_hospital_data(gm_path=gm_path, gm_n_labels=18, ryc_path=ryc_path,
-#                                                   keep_common=True, return_GM=True, return_RYC=True, norm_both=True)
+maldi_gm = gm_data['maldi']
+fen_gm = gm_data['fen']
+cmi_gm = gm_data['cmi']
+ab_gm = gm_data['binary_ab']
 
-ryc_x = ryc_full_data["maldi"].copy(deep=True)
-ryc_y = ryc_full_data[ryc_full_data.columns[-12:]].copy(deep=True)
-nan_index = ryc_full_data.isnull().any(axis=1)
-
-gm_x, gm_y = gm_data[0], gm_data[1]
-
-gm_y_seen = gm_y[~np.isnan(gm_y).any(axis=1)]
-gm_y_ss = gm_y[np.isnan(gm_y).any(axis=1)]
-ss_index = np.argwhere(np.isnan(gm_y).any(axis=1))[:, 0]
-gm_x_seen = np.delete(gm_x, ss_index, axis=0)
-gm_x_ss = gm_x[ss_index]
-
-ryc_y_seen = ryc_y[~nan_index]
-ryc_y_ss = ryc_y[nan_index]
-ryc_x_seen = ryc_x[~nan_index]
-ryc_x_ss = ryc_x[nan_index]
+maldi_ryc = ryc_data['maldi']
+fen_ryc = ryc_data['fen']
+gen_ryc = ryc_data['gen']
+cmi_ryc = ryc_data['cmi']
+ab_ryc = ryc_data['binary_ab']
 
 results = {}
 
-with open("./data/ryc_folds.pkl", 'rb') as pkl:
+with open("./data/gm_5folds_FULLDATA.pkl", 'rb') as pkl:
+    gm_folds = pickle.load(pkl)
+with open("./data/ryc_5folds.pkl", 'rb') as pkl:
     ryc_folds = pickle.load(pkl)
 
-with open("./data/gm_folds.pkl", 'rb') as pkl:
-    gm_folds = pickle.load(pkl)
-
-hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-1, "max_it": int(1e5)}}
-
+hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-1, "max_it": int(1500)}}
+c = 0
 for f in range(len(gm_folds["train"])):
-    print("Training fold: ", f)
+    print("Training fold: ", c)
+    x0_tr_gm, x0_val_gm = maldi_gm.loc[gm_folds["train"][f]], maldi_gm.loc[gm_folds["val"][f]]
+    x1_tr_gm, x1_val_gm = fen_gm.loc[gm_folds["train"][f]], fen_gm.loc[gm_folds["val"][f]]
+    y1_tr_gm, y1_val_gm = ab_gm.loc[gm_folds["train"][f]], ab_gm.loc[gm_folds["val"][f]]
 
-    # ============= LOAD FOLDS ==================
-    ryc_x_tr, ryc_y_tr, ryc_x_tst, ryc_y_tst = ryc_x_seen.loc[ryc_folds["train"][f]], \
-                                               ryc_y_seen.loc[ryc_folds["train"][f]], \
-                                               ryc_x_seen.loc[ryc_folds["test"][f]], \
-                                               ryc_y_seen.loc[ryc_folds["test"][f]]
-    gm_x_tr, gm_y_tr, gm_x_tst, gm_y_tst = gm_x_seen[gm_folds["train"][f]], gm_y_seen[gm_folds["train"][f]], \
-                                           gm_x_seen[gm_folds["test"][f]], gm_y_seen[gm_folds["test"][f]]
+    x0_tr_ryc, x0_val_ryc = maldi_ryc.loc[ryc_folds["train"][f]], maldi_ryc.loc[ryc_folds["val"][f]]
+    x1_tr_ryc, x1_val_ryc = fen_ryc.loc[ryc_folds["train"][f]], fen_ryc.loc[ryc_folds["val"][f]]
+    x2_tr_ryc, x2_val_ryc = gen_ryc.loc[ryc_folds["train"][f]], gen_ryc.loc[ryc_folds["val"][f]]
+    y1_tr_ryc, y1_val_ryc = ab_ryc.loc[ryc_folds["train"][f]], ab_ryc.loc[ryc_folds["val"][f]]
 
-    # ============= CONCATENATE BOTH HOSPITAL DATA ==================
-    ryc_Y = np.vstack((np.vstack(ryc_y_ss.values), np.vstack(ryc_y_tr.values)))
+    x0 = np.vstack((np.vstack(x0_tr_gm.values), np.vstack(x0_tr_ryc.values),
+                    np.vstack(x0_val_gm.values),  np.vstack(x0_val_ryc.values))).astype(float)
+    x1 = np.vstack((np.vstack(x1_tr_gm.values), np.vstack(x1_tr_ryc.values),
+                    np.vstack(x1_val_gm.values), np.vstack(x1_val_ryc.values))).astype(float)
+    x2 = np.vstack((np.nan*np.ones((np.vstack(x0_tr_gm.values).shape[0], 4)), np.vstack(x2_tr_ryc.values),
+                    np.nan*np.ones((np.vstack(x0_val_gm.values).shape[0], 4)), np.vstack(x2_val_ryc.values))).astype(float)
+    y1 = np.vstack((np.vstack(y1_tr_gm.values), np.vstack(y1_tr_ryc.values))).astype(float)
 
-    X = np.vstack((np.vstack(ryc_x_ss.values), gm_x_ss,
-                   np.vstack(ryc_x_tr.values), gm_x_tr,
-                   np.vstack(ryc_x_tst.values), gm_x_tst))
-    Y = np.vstack((np.vstack(ryc_y_ss.values), gm_y_ss,
-                   np.vstack(ryc_y_tr.values), gm_y_tr))
-    Y[Y > 1] = np.NaN
-
-    # ============= INITIALIZE MODEL PARAMETERS ==================
     myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
 
-    X0_kernel_lin = myModel_mul.struct_data(X, method='reg', V=X, kernel="linear", sparse_fs=1)
-    Y0_tr = myModel_mul.struct_data(Y, 'mult', 0)
+    X0 = myModel_mul.struct_data(x0, method="reg", V=np.vstack((np.vstack(x0_val_gm.values), np.vstack(x0_val_ryc.values))),
+                                 kernel="linear", sparse_fs=1)
+    X1 = myModel_mul.struct_data(np.hstack((x1, x2)), method="mult", sparse=0)
+    Y1 = myModel_mul.struct_data(y1, method="mult", sparse=0)
 
-    myModel_mul.fit(X0_kernel_lin, Y0_tr, max_iter=hyper_parameters['sshiba']['max_it'],
+    myModel_mul.fit(X0,
+                    X1,
+                    Y1,
+                    max_iter=hyper_parameters['sshiba']['max_it'],
                     pruning_crit=hyper_parameters['sshiba']['pruning_crit'],
-                    verbose=1, ACC=1, AUC=1, feat_crit=1e-2)
+                    verbose=1,
+                    feat_crit=1e-2)
 
-    model_name = "model_fold" + str(f)
+    model_name = "model_fold" + str(c)
     results[model_name] = myModel_mul
+    c += 1
 
-with open("Results/RyC-GM_mult_model.pkl", 'wb') as f:
+with open("Results/BOTH_5fold_FENGENmult_HGMGENnan_prun1e1.pkl", 'wb') as f:
     pickle.dump(results, f)
+
+results_store = {}
+for model in results.keys():
+    results_store[model] = {}
+    results_store[model] = results[model_name]
+
+with open("Results/BOTH_5fold_FENGENmult_HGMGENnan_prun1e1.pkl", 'wb') as f:
+    pickle.dump(results_store, f)

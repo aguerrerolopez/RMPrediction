@@ -29,9 +29,7 @@ def load_data(path, format=None, train_test_split=True):
         # zf = zipfile.ZipFile(path + 'zipped_TestData.zip', 'r')
         # df_test = pickle.loads(zf.open('TestData.pkl').read())
         # zf.close()
-        zf = zipfile.ZipFile(path + 'zipped_Data.zip', 'r')
-        df_data = pickle.loads(zf.open('Data.pkl').read())
-        zf.close()
+
 
         return df_data
 
