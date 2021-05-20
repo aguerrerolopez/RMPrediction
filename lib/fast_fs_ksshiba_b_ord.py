@@ -107,9 +107,14 @@ class SSHIBA(object):
 
 
         n = []
+        self.stochastic_sampling = []
         # TODO: quitar este for y hacerlo en una sola linea
         for (m,arg) in enumerate(args):
-            n.append(int(arg['data'].shape[0]))
+            self.stochastic_sampling.append(arg['stochastic_sampling'])
+            if self.stochastic_sampling[m]:
+                n.append(len(np.unique(arg['data'].index)))
+            else: 
+                n.append(int(arg['data'].shape[0]))
         self.n_max = np.max(n)
 
         self.n = []
@@ -136,9 +141,15 @@ class SSHIBA(object):
         for arg in args:
             m += 1
             if not (None in arg['data']):
-                self.n.append(int(arg['data'].shape[0]))
+                if self.stochastic_sampling[m]:
+                    self.n.append(len(np.unique(arg['data'].index)))
+                else:
+                    self.n.append(int(arg['data'].shape[0]))
                 if arg['method'] == 'reg':   #Regression
-                    self.d.append(int(arg['data'].shape[1]))
+                    if self.stochastic_sampling[m]:
+                        self.d.append(int(arg['data'][0].shape[0]))
+                    else:
+                        self.d.append(int(arg['data'].shape[1]))
                 elif arg['method'] == 'cat': #Categorical
                     self.d.append(int(arg['h_dim']))
                 elif arg['method'] == 'ord': #Categorical
@@ -155,6 +166,7 @@ class SSHIBA(object):
             self.center.append(arg['center'])
             self.method.append(arg['method'])
             self.area_mask.append(arg['mask'])
+            
 
             mn = np.random.normal(0.0, 1.0, self.n_max * self.d[m]).reshape(self.n_max, self.d[m])
             info = {
@@ -171,8 +183,10 @@ class SSHIBA(object):
             #Kernel
             data = copy.deepcopy(arg['data'])
             if not (arg['SV'] is None):
+                
                 self.V[m] = copy.deepcopy(arg['SV'])
                 self.X[m]['X'] = copy.deepcopy(arg['data'])
+
                 self.k[m] = copy.deepcopy(arg['kernel'])
                 self.sig[m] = copy.deepcopy(arg['sig'])
                 self.deg[m] = arg['deg']
@@ -181,11 +195,24 @@ class SSHIBA(object):
                 #Linear Kernel
                 if self.k[m] == 'linear':
                     if self.sparse_fs[m]:
-                        self.sparse_K[m] = SparseELBO(self.X[m]['X'], self.V[m], self.sparse_fs[m], kernel = self.k[m])
+                        # PABLO: PASARLE LA PRIMERA ALEATORIA DE X Y V
+                        if self.stochastic_sampling[m]:
+                            Xsample = self.stochastic(self.X[m]['X']),
+                            Vsample = Xsample
+                            self.sparse_K[m] = SparseELBO(Xsample, Vsample, self.sparse_fs[m], kernel = self.k[m])
+                        else:
+                            self.sparse_K[m] = SparseELBO(self.X[m]['X'], self.V[m], self.sparse_fs[m], kernel = self.k[m])
+
                         data = self.sparse_K[m].get_params()[0]
                         self.it_fs = 1
                     else:
-                        data = np.dot(self.X[m]['X'], self.V[m].T)
+                        # PABLO: ESCGOER ALEATORIAMENTE UNA MUESTRA DE X Y UNA DE V
+                        if self.stochastic_sampling[m]:
+                            Xsample = self.stochastic(self.X[m]['X'])
+                            Vsample = Xsample
+                            data = np.dot(Xsample, Vsample.T)
+                        else:
+                            data = np.dot(self.X[m]['X'], self.V[m].T)
                 #RBF Kernel
                 elif self.k[m] == 'rbf':
                     if self.sig[m] == 'auto' or self.sparse_fs[m]:
@@ -201,7 +228,8 @@ class SSHIBA(object):
                     print('Error, selected kernel doesn\'t exist')
                 if self.center[m]:
                     data = self.center_K(data)
-                self.d[m] = self.V[m].shape[0]
+                if self.stochastic_sampling[m]:
+                    self.d[m] = len(np.unique(self.V[m].index))
                 self.X[m]['cov'] = np.random.normal(0.0, 1.0, self.n_max * self.d[m]).reshape(self.n_max, self.d[m])**2
 
             #Regression
@@ -466,6 +494,10 @@ class SSHIBA(object):
                     return
         verboseprint('')
 
+    def stochastic(self, df):
+        return np.vstack(df.groupby("id").sample(n=1).to_numpy())
+
+
     def rbf_kernel_sig(self, X1, X2, sig=0):
         """RBF Kernel.
 
@@ -598,7 +630,7 @@ class SSHIBA(object):
                 q.b[m]['mean'] = q.b[m]['mean'][:,feat_sel[m]]
                 q.d[m] = len(feat_sel[m])
 
-    def struct_data(self, X, method, sparse = 0, V = None, kernel = None, sig = 0, sparse_fs = 0, center = 1, mask = None, deg = None,
+    def struct_data(self, X, method, sparse = 0, V = None, stochastic_sampling=0, kernel = None, sig = 0, sparse_fs = 0, center = 1, mask = None, deg = None,
                     h_dim = None):
         """Fit model to data.
 
@@ -633,7 +665,7 @@ class SSHIBA(object):
         else:
             tohe = None
 
-        X = dict(data=X, sparse=sparse, sparse_fs=sparse_fs, method=method, mask=mask, SV=V, kernel=kernel, sig=sig,
+        X = dict(data=X, sparse=sparse, stochastic_sampling=stochastic_sampling, sparse_fs=sparse_fs, method=method, mask=mask, SV=V, kernel=kernel, sig=sig,
                  center=center, deg=deg, h_dim=h_dim, len=tohe)
 
         if mask is not None and not sparse:
@@ -807,7 +839,16 @@ class SSHIBA(object):
                     self.X[m]['sumlogdet'] = np.sum(np.log(X_SS))
 
                 else:
+                    if self.stochastic_sampling[m]:
+                        Xsample = self.stochastic(self.X[m]['X'])
+                        Vsample = Xsample
+                        if self.sparse_fs[m]:
+                            kernel = self.sparse_K[m].update_kernel(Xsample, Vsample)
+                        else:
+                            kernel = np.dot(Xsample, Vsample.T)
+                        self.X[m]['mean'] = self.center_K(kernel)
                     self.X[m]['prodT'] = np.dot(self.X[m]['mean'].T, self.X[m]['mean'])
+                    
                 #Update of the variable tau
                 self.update_tau(m)
 
@@ -1830,6 +1871,10 @@ class SparseELBO(nn.Module):
         M = -(self.K.pow(2) - 2 * self.K * ZAT)/2
         return M
 
+    def update_kernel(self, X, V):
+        self.K = self.kernel.forward(self.X, self.V)
+        return self.K.data.cpu().numpy()
+
     def get_params(self):
         '''
         Returns the lengthscale and the variance of the RBF kernel in numpy form
@@ -1852,7 +1897,7 @@ class SparseELBO(nn.Module):
             # variance = self.sigmoid(self.kernel.log_variance).data.cpu().numpy()
             return self.K.data.cpu().numpy(), variance
 
-    def sgd_step(self, ZAT, it):
+    def sgd_step(self, ZAT=None, it=10, stochastic=False, X=None, V=None):
         '''
         Computes "it" steps of the Adam optimizer to optimize our ELBO.
         Parameters
@@ -1867,6 +1912,10 @@ class SparseELBO(nn.Module):
         None.
 
         '''
+        if stochastic:
+            self.X = X
+            self.V = V
+
         ZAT = torch.from_numpy(ZAT).to(self.device)
         for i in range(it):
             self.opt.zero_grad()

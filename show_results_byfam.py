@@ -17,18 +17,18 @@ def plot_W(W, title):
     plt.show()
 
 ryc = False
-hgm = False
-both = True
+hgm = True
+both = False
 no_ertapenem = False
 resultados = []
 
-familia="otros"
+familia="carbapenems"
 for fold in range(5):
 
     if ryc: hospital="RyC"
     elif hgm: hospital="HGM"
     elif both: hospital="Both"
-    modelo_a_cargar = "./Results/mediana_noard_both/"+hospital+"_5fold"+str(fold)+"_2-12maldi_"+familia+"_prun0.1.pkl"
+    modelo_a_cargar = "./Results/stochastic_5fold_noard/"+hospital+"_5fold"+str(fold)+"_2-12maldi_"+familia+"_prun0.1.pkl"
 
     if ryc:
         familias = {

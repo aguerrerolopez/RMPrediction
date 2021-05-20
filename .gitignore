@@ -17,6 +17,9 @@
 *.cab
 *.xar
 
+
+# Telegram bot
+*.json
 # Excel datasets
 *.xlsx
 # Papers
@@ -28,6 +31,8 @@ Results/
 # Packing-only formats
 *.iso
 *.tar
+# logs
+*.log
 
 # Package management formats
 *.dmg

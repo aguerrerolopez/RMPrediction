@@ -6,6 +6,7 @@ sys.path.insert(0, "./lib")
 from lib import fast_fs_ksshiba_b_ord as ksshiba
 # from lib import ksshiba_new as ksshiba
 import json
+import pandas as pd
 import telegram
 
 def notify_ending(message):
@@ -35,9 +36,9 @@ for fold in range(5):
 
     for familia in familias:
         print(familia)
-        data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
+        data_path = "./data/hgm_data_allsamples_only2-12_TIC.pkl"
         folds_path = "./data/HGM_5STRATIFIEDfolds_"+familia+".pkl"
-        store_path = "Results/mediana_5fold_noard_/HGM_5fold"+str(fold)+"_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+        store_path = "Results/stochastic_5fold_noard/HGM_5fold"+str(fold)+"_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         # store_path = "Results/RyC_onlyd17_noprior_fullab_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path + "\n Folds used: " + folds_path +\
                 "\n Storage name: "+store_path
@@ -46,10 +47,10 @@ for fold in range(5):
             hgm_data = pickle.load(pkl)
 
         maldi = hgm_data['maldi']
-        fen = hgm_data['fen']
-        gen = hgm_data['gen']
-        cmi = hgm_data['cmi']
-        ab = hgm_data['binary_ab']
+        fen = hgm_data['fen'].groupby("id").sample(n=1)
+        # gen = hgm_data['gen'].groupby("id").sample(n=1)
+        cmi = hgm_data['cmi'].groupby("id").sample(n=1)
+        ab = hgm_data['binary_ab'].groupby("id").sample(n=1)
 
         results = {}
     
@@ -65,11 +66,12 @@ for fold in range(5):
             # x2_tr, x2_val = gen.loc[folds["train"][f]], gen.loc[folds["val"][f]]
             y_tr, y_val = ab.loc[folds["train"][f]], ab.loc[folds["val"][f]]
 
-            x0_tr = np.vstack(x0_tr.values).astype(float)
-            x0_val = np.vstack(x0_val.values).astype(float)
+            # x0_tr = np.vstack(x0_tr.values).astype(float)
+            # x0_val = np.vstack(x0_val.values).astype(float)
 
-            # Concatenate the X fold of seen points and the unseen points
-            x0 = np.vstack((x0_tr, x0_val)).astype(float)
+            # # Concatenate the X fold of seen points and the unseen points
+            x0_pandas = pd.concat([x0_tr, x0_val])
+            # x0 = np.vstack((x0_tr, x0_val)).astype(float)
             # Fenotype
             x1 = np.vstack((np.vstack(x1_tr.values), np.vstack(x1_val.values))).astype(float)
             # Genotype
@@ -82,8 +84,7 @@ for fold in range(5):
             y0 = np.vstack((np.vstack(y_tr[familias[familia]].values)))
 
             myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
-            print(x0.shape)
-            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="linear", sparse_fs=0)
+            X0 = myModel_mul.struct_data(x0_pandas, stochastic_sampling=1, method="reg", V=x0_pandas, kernel="linear", sparse_fs=0)
             # X0 = myModel_mul.struct_data(x0, method="reg", sparse=1)
             X1 = myModel_mul.struct_data(x1, method="mult")
             # X2 = myModel_mul.struct_data(x2, method="mult")
