@@ -23,6 +23,8 @@
 *.pdf
 # Not public datasets
 data/
+# Not public results too heavy files
+Results/
 # Packing-only formats
 *.iso
 *.tar
