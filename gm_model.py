@@ -1,11 +1,29 @@
 import pickle
 import sys
 import numpy as np
-
 sys.path.insert(0, "./lib")
 from lib import fast_fs_ksshiba_b_ord as ksshiba
+import json
+import telegram
 
-with open("./data/gm_data_TIC.pkl", 'rb') as pkl:
+def notify_ending(message):
+    with open('./keys_file.json', 'r') as keys_file:
+        k = json.load(keys_file)
+        token = k['telegram_token']
+        chat_id = k['telegram_chat_id']
+    bot = telegram.Bot(token=token)
+    bot.sendMessage(chat_id=chat_id, text=message)
+
+
+hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-1, "max_it": int(1500)}}
+
+folds_path = "./data/gm_5folds_sinreplicados.pkl"
+data_path = "./data/gm_data_sinreplicados_TIC.pkl"
+store_path = "Results/HGM_fold0_lowprior_proyectXtr_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path + "\n Folds used: " + folds_path +\
+              "\n Storage name: "+store_path
+
+with open(data_path, 'rb') as pkl:
    gm_data = pickle.load(pkl)
 
 maldi = gm_data['maldi']
@@ -16,12 +34,12 @@ ab = gm_data['binary_ab']
 
 results = {}
 
-with open("./data/gm_5folds_FULLDATA.pkl", 'rb') as pkl:
+with open(folds_path, 'rb') as pkl:
     folds = pickle.load(pkl)
 
-hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-1, "max_it": int(1500)}}
 c = 0
 for f in range(len(folds["train"])):
+    f=0
     print("Training fold: ", c)
     x0_tr, x0_val = maldi.loc[folds["train"][f]], maldi.loc[folds["val"][f]]
     x1_tr, x1_val = fen.loc[folds["train"][f]], fen.loc[folds["val"][f]]
@@ -54,13 +72,7 @@ for f in range(len(folds["train"])):
     results[model_name] = myModel_mul
     c += 1
 
-with open("Results/GM_5fold_mult_varpriori_fullmodel_NOSTD_nogpu.pkl", 'wb') as f:
+with open(store_path, 'wb') as f:
     pickle.dump(results, f)
 
-results_store = {}
-for model in results.keys():
-    results_store[model] = {}
-    results_store[model] = results[model_name]
-
-with open("Results/GM_5fold_mult_varpriori_fullmodel_NOSTD_nogpu.pkl", 'wb') as f:
-    pickle.dump(results_store, f)
+notify_ending(message)

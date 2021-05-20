@@ -42,9 +42,9 @@ def load_gm(excel_path = "/Users/alexjorguer/Downloads/Reproducibilidad/Klebsiel
         gm_full_data = gm_full_data.drop(['MEROPENEM', 'MEROPENEM.1', 'COLISTINA', 'COLISTINA.1'], axis=1)
 
     complete_samples = np.unique(
-        gm_full_data[~gm_full_data.iloc[:, np.arange(14, len(gm_full_data.columns) - 5, 2)].isna(
+        gm_full_data[~gm_full_data.iloc[:, np.arange(8, len(gm_full_data.columns) - 2, 2)].isna(
         ).any(axis=1)].index)
-    missing_samples = np.unique(gm_full_data[gm_full_data.iloc[:, np.arange(14, len(gm_full_data.columns) - 5, 2)].isna(
+    missing_samples = np.unique(gm_full_data[gm_full_data.iloc[:, np.arange(8, len(gm_full_data.columns) - 2, 2)].isna(
     ).any(axis=1)].index)
 
     kf = KFold(n_splits=5, random_state=32, shuffle=True)
@@ -55,7 +55,7 @@ def load_gm(excel_path = "/Users/alexjorguer/Downloads/Reproducibilidad/Klebsiel
         gm_folds["train"].append(train_with_missing)
         gm_folds["val"].append(complete_samples[test_idx])
 
-    with open("data/gm_5folds_FULLDATA.pkl", 'wb') as f:
+    with open("data/gm_5folds_sinreplicados.pkl", 'wb') as f:
         pickle.dump(gm_folds, f)
 
     if tic_norm:
@@ -71,7 +71,7 @@ def load_gm(excel_path = "/Users/alexjorguer/Downloads/Reproducibilidad/Klebsiel
                "cmi": gm_full_data.iloc[:, np.arange(9, len(gm_full_data.columns) - 1, 2)].copy(),
                "binary_ab": gm_full_data.iloc[:, np.arange(8, len(gm_full_data.columns) - 1, 2)].copy()}
 
-    with open("data/gm_data_TIC.pkl", 'wb') as f:
+    with open("data/gm_data_sinreplicados_TIC.pkl", 'wb') as f:
         pickle.dump(gm_dict, f)
 
 def load_ryc( ryc_path='./data/Klebsiellas_RyC/', tic_norm=True):
@@ -124,7 +124,8 @@ def load_ryc( ryc_path='./data/Klebsiellas_RyC/', tic_norm=True):
     ryc_folds = {"train": [], "val": []}
 
     for train_idx, test_idx in kf.split(range(len(complete_samples))):
-        ryc_folds["train"].append(complete_samples[train_idx])
+        train_with_missing = np.concatenate([complete_samples[train_idx], missing_samples])
+        ryc_folds["train"].append(train_with_missing)
         ryc_folds["val"].append(complete_samples[test_idx])
     with open("data/ryc_5folds_NOERTAPENEM.pkl", 'wb') as f:
         pickle.dump(ryc_folds, f)
