@@ -37,7 +37,7 @@ for fold in range(5):
         print(familia)
         data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
         folds_path = "./data/HGM_5STRATIFIEDfolds_"+familia+".pkl"
-        store_path = "Results/mediana_5fold_noard_/HGM_5fold"+str(fold)+"_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+        store_path = "Results/mediana_5fold_noard_/HGM_5fold"+str(fold)+"_ONLYMALDI_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         # store_path = "Results/RyC_onlyd17_noprior_fullab_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path + "\n Folds used: " + folds_path +\
                 "\n Storage name: "+store_path
@@ -90,7 +90,7 @@ for fold in range(5):
             Y0 = myModel_mul.struct_data(y0.astype(float), method="mult")
 
             myModel_mul.fit(X0,
-                            X1,
+                            # X1,
                             # X2,
                             Y0,
                             max_iter=hyper_parameters['sshiba']['max_it'],

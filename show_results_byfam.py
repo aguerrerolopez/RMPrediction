@@ -17,8 +17,8 @@ def plot_W(W, title):
     plt.show()
 
 ryc = False
-hgm = False
-both = True
+hgm = True
+both = False
 no_ertapenem = False
 resultados = []
 
@@ -28,7 +28,7 @@ for fold in range(5):
     if ryc: hospital="RyC"
     elif hgm: hospital="HGM"
     elif both: hospital="Both"
-    modelo_a_cargar = "./Results/mediana_noard_both/"+hospital+"_5fold"+str(fold)+"_2-12maldi_"+familia+"_prun0.1.pkl"
+    modelo_a_cargar = "./Results/mediana_5fold_noard_/"+hospital+"_5fold"+str(fold)+"_ONLYMALDI_2-12maldi_"+familia+"_prun0.1.pkl"
 
     if ryc:
         familias = {
@@ -112,14 +112,14 @@ for fold in range(5):
             y_tst = data_y[familias[familia]].loc[folds["val"][fold]]
             y_tst = y_tst.to_numpy().astype(float)
 
-        if hgm: y_pred = results[model].t[2]["mean"][-y_tst.shape[0]:, :]
+        if hgm: y_pred = results[model].t[1]["mean"][-y_tst.shape[0]:, :]
         elif ryc: y_pred = results[model].t[3]["mean"][-y_tst.shape[0]:, :]
         else: y_pred = results[model].t[4]["mean"][-y_tst.shape[0]:, :]
 
         for i_pred in range(auc_by_ab.shape[1]):
             auc_by_ab[c, i_pred] = roc_auc_score(y_tst[:, i_pred], y_pred[:, i_pred])
             
-        lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[2]["mean"]), axis=0) > 0.5))
+        lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[1]["mean"]), axis=0) > 0.5))
 
         c += 1
 

@@ -17,6 +17,10 @@
 *.cab
 *.xar
 
+# Ignore json
+*.json
+# Ignore logs
+*.log
 # Excel datasets
 *.xlsx
 # Papers
