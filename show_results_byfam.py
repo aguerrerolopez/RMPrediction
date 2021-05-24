@@ -22,13 +22,13 @@ both = False
 no_ertapenem = False
 resultados = []
 
-familia="otros"
-for fold in range(5):
+familia="carbapenems"
+for fold in range(10):
 
     if ryc: hospital="RyC"
     elif hgm: hospital="HGM"
     elif both: hospital="Both"
-    modelo_a_cargar = "./Results/mediana_5fold_noard_/"+hospital+"_5fold"+str(fold)+"_ONLYMALDI_2-12maldi_"+familia+"_prun0.1.pkl"
+    modelo_a_cargar = "./Results/mediana_10fold_noard/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
 
     if ryc:
         familias = {
@@ -57,7 +57,7 @@ for fold in range(5):
                     }
         with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
             data = pickle.load(pkl)
-        with open("./data/HGM_5STRATIFIEDfolds_"+familia+".pkl", 'rb') as pkl:
+        with open("./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
             folds = pickle.load(pkl)
 
     if both:
@@ -86,7 +86,7 @@ for fold in range(5):
             ryc_folds = pickle.load(pkl)
         with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
             hgm_data = pickle.load(pkl)
-        with open("./data/HGM_5STRATIFIEDfolds_"+familia+".pkl", 'rb') as pkl:
+        with open("./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
             hgm_folds = pickle.load(pkl)
         hgm_y = hgm_data["binary_ab"]
         ryc_y = ryc_data["binary_ab"]
@@ -98,28 +98,34 @@ for fold in range(5):
     with open(modelo_a_cargar, 'rb') as pkl:
         results = pickle.load(pkl)
 
+    if both: 
+        ryc_y_tst = ryc_y[familias_ryc[familia]].loc[ryc_folds["val"][fold]].to_numpy()
+        hgm_y_tst = hgm_y[familias_hgm[familia]].loc[hgm_folds["val"][fold]].to_numpy()
+        y_tst = np.vstack((hgm_y_tst, ryc_y_tst))
+
+    else:
+        # import missingno as msno
+        # print(msno.matrix(data_y[familias[familia]].loc[folds["train"][fold]]))
+        # for ab in familias[familia]:
+        #     print(data_y[ab].loc[folds["train"][fold]].value_counts())
+        y_tst = data_y[familias[familia]].loc[folds["val"][fold]]
+        y_tst = y_tst.to_numpy().astype(float)
+
+        
     c = 0
     lf_imp = []
     auc_by_ab = np.zeros((5,len(familias[familia])))
     for i in range(5):
         model = "model_fold" + str(c)
-        if both: 
-            ryc_y_tst = ryc_y[familias_ryc[familia]].loc[ryc_folds["val"][fold]].to_numpy()
-            hgm_y_tst = hgm_y[familias_hgm[familia]].loc[hgm_folds["val"][fold]].to_numpy()
-            y_tst = np.vstack((hgm_y_tst, ryc_y_tst))
 
-        else:
-            y_tst = data_y[familias[familia]].loc[folds["val"][fold]]
-            y_tst = y_tst.to_numpy().astype(float)
-
-        if hgm: y_pred = results[model].t[1]["mean"][-y_tst.shape[0]:, :]
+        if hgm: y_pred = results[model].t[2]["mean"][-y_tst.shape[0]:, :]
         elif ryc: y_pred = results[model].t[3]["mean"][-y_tst.shape[0]:, :]
         else: y_pred = results[model].t[4]["mean"][-y_tst.shape[0]:, :]
-
+        y_pred[:, 0:2] = 1-y_pred[:, 0:2]
         for i_pred in range(auc_by_ab.shape[1]):
             auc_by_ab[c, i_pred] = roc_auc_score(y_tst[:, i_pred], y_pred[:, i_pred])
             
-        lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[1]["mean"]), axis=0) > 0.5))
+        lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[2]["mean"]), axis=0) > 0.5))
 
         c += 1
 

@@ -78,21 +78,42 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 for fam in familias:
     complete_samples = np.unique(gm_full_data[~gm_full_data[familias[fam]].isna().any(axis=1)].index)
     missing_samples = np.unique(gm_full_data[gm_full_data[familias[fam]].isna().any(axis=1)].index)
-    fold_storage_name = "data/HGM_5STRATIFIEDfolds_"+fam+".pkl"
+    fold_storage_name = "data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+fam+".pkl"
     gm_complete_y= gm_full_data[familias[fam]].loc[complete_samples]
     if gm_complete_y.shape[1]>1:
-        mskf = MultilabelStratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+        mskf = MultilabelStratifiedKFold(n_splits=10, shuffle=True, random_state=0)
     else: 
-        mskf = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+        mskf = StratifiedKFold(n_splits=10, shuffle=True, random_state=0)
     gm_folds = {"train": [], "val": []}
     for tr_idx, tst_idx in mskf.split(complete_samples, gm_complete_y):
-        train_with_missing = np.concatenate([complete_samples[tr_idx], missing_samples])
-        gm_folds["train"].append(train_with_missing)
-        gm_folds["val"].append(complete_samples[tst_idx])
+        train_samples = complete_samples[tr_idx]
+        test_samples = complete_samples[tst_idx]
         for ab in familias[fam]:
-            if gm_complete_y[ab].loc[complete_samples[tst_idx]].value_counts().shape[0]<2:
+            # COMPROBAR SI ESTÁN DESCOMPENSADAS EN ENTRENAMIENTO
+            low_appear_value = int(gm_complete_y[ab].loc[train_samples].value_counts().index[1])
+            n_repeats = abs(np.diff(gm_complete_y[ab].loc[train_samples].value_counts()))
+            if int(n_repeats) > int(50):
+                low_appear_rep_idx = gm_complete_y[ab].loc[train_samples][gm_complete_y[ab].loc[train_samples]==low_appear_value].sample(n_repeats, replace=1).index
+                train_samples = np.concatenate([train_samples, low_appear_rep_idx])
+            
+            # COMPROBAR SI TENGO MUESTRAS DE LOS DOS TIPOS EN TEST
+            if gm_complete_y[ab].loc[test_samples].value_counts().shape[0]<2:
                 print("NO STRATIFIED FOR AB: "+ab)
-                print(gm_complete_y[ab].loc[complete_samples[tst_idx]].value_counts())
+                print(gm_complete_y[ab].loc[test_samples].value_counts())
+                # Mirar cuale s el valor que no tenemos en test
+                no_samples_value = int(np.logical_not(gm_complete_y[ab].loc[test_samples].value_counts().index[0]))
+                # Buscamos el valor entre los de training
+                new_test_sample = gm_complete_y[ab].loc[train_samples][gm_complete_y[ab].loc[train_samples]==no_samples_value].sample(1).index
+                # Lo metemos en test y lo eliminamos de train
+                test_samples = np.concatenate([test_samples, new_test_sample])
+                train_samples = train_samples[train_samples != new_test_sample[0]]
+                print("Ahora debería estar correcto "+ab)
+                print(gm_complete_y[ab].loc[test_samples].value_counts())
+
+        train_samples = np.concatenate([train_samples, missing_samples])   
+        gm_folds["train"].append(train_samples)
+        gm_folds["val"].append(test_samples)
+    
     with open(fold_storage_name, 'wb') as f:
         pickle.dump(gm_folds, f)
 
@@ -114,18 +135,18 @@ for fam in familias:
 # with open("data/gm_5folds_sinreplicados.pkl", 'wb') as f:
 #     pickle.dump(gm_folds, f)
 
-if tic_norm:
-    print("TIC NORMALIZING gm DATA...")
-    for i in range(gm_full_data["maldi"].shape[0]):
-        TIC = np.sum(gm_full_data["maldi"][i])
-        gm_full_data["maldi"][i] /= TIC
+# if tic_norm:
+#     print("TIC NORMALIZING gm DATA...")
+#     for i in range(gm_full_data["maldi"].shape[0]):
+#         TIC = np.sum(gm_full_data["maldi"][i])
+#         gm_full_data["maldi"][i] /= TIC
 
-gm_dict = {"full": gm_full_data,
-            "maldi": gm_full_data['maldi'].copy(),
-            "fen": gm_full_data.loc[:, 'Fenotipo CP':'Fenotipo noCP noESBL'].copy(),
-            "gen": None,
-            "cmi": gm_full_data.iloc[:, np.arange(9, len(gm_full_data.columns) - 1, 2)].copy(),
-            "binary_ab": gm_full_data.iloc[:, np.arange(8, len(gm_full_data.columns) - 1, 2)].copy()}
+# gm_dict = {"full": gm_full_data,
+#             "maldi": gm_full_data['maldi'].copy(),
+#             "fen": gm_full_data.loc[:, 'Fenotipo CP':'Fenotipo noCP noESBL'].copy(),
+#             "gen": None,
+#             "cmi": gm_full_data.iloc[:, np.arange(9, len(gm_full_data.columns) - 1, 2)].copy(),
+#             "binary_ab": gm_full_data.iloc[:, np.arange(8, len(gm_full_data.columns) - 1, 2)].copy()}
 
-with open("data/hgm_data_mediansample_only2-12_TIC.pkl", 'wb') as f:
-    pickle.dump(gm_dict, f)
+# with open("data/hgm_data_mediansample_only2-12_TIC.pkl", 'wb') as f:
+#     pickle.dump(gm_dict, f)
