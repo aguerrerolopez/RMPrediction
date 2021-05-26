@@ -1,5 +1,6 @@
 import pickle
 from matplotlib import pyplot as plt
+from matplotlib.colors import Normalize
 import numpy as np
 from sklearn.metrics import roc_curve, auc, roc_auc_score, r2_score, mean_squared_error
 
@@ -12,9 +13,11 @@ def plot_W(W, title):
     plt.imshow((np.abs(W)), aspect=W.shape[1] / W.shape[0])
     plt.colorbar()
     plt.title(title)
+    plt.yticks(np.arange(0, W.shape[0]))
     plt.ylabel('features')
     plt.xlabel('K')
     plt.show()
+
 
 ryc = False
 hgm = True
@@ -22,13 +25,16 @@ both = False
 no_ertapenem = False
 resultados = []
 
-familia="carbapenems"
+familia="penicilinas"
+W_byfold = np.zeros((10, 10000))
+models_sel = [None]*10
+print("############################## "+familia+" ############################## ")
 for fold in range(10):
 
     if ryc: hospital="RyC"
     elif hgm: hospital="HGM"
     elif both: hospital="Both"
-    modelo_a_cargar = "./Results/mediana_10fold_noard/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
+    modelo_a_cargar = "./Results/mediana_10fold_rbf/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
 
     if ryc:
         familias = {
@@ -115,19 +121,35 @@ for fold in range(10):
     c = 0
     lf_imp = []
     auc_by_ab = np.zeros((5,len(familias[familia])))
+    W_2norm=0
+
+    elbo=[]
+    Ks = [1e5]
     for i in range(5):
         model = "model_fold" + str(c)
+
+        elbo.append(results[model].L[-1])
+
+        if results[model].q_dist.W[2]["mean"].shape[1]<Ks[-1]:
+            models_sel[fold] = results[model]
+        Ks.append(results[model].q_dist.W[0]["mean"].shape[1])
 
         if hgm: y_pred = results[model].t[2]["mean"][-y_tst.shape[0]:, :]
         elif ryc: y_pred = results[model].t[3]["mean"][-y_tst.shape[0]:, :]
         else: y_pred = results[model].t[4]["mean"][-y_tst.shape[0]:, :]
-        y_pred[:, 0:2] = 1-y_pred[:, 0:2]
         for i_pred in range(auc_by_ab.shape[1]):
             auc_by_ab[c, i_pred] = roc_auc_score(y_tst[:, i_pred], y_pred[:, i_pred])
             
-        lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[2]["mean"]), axis=0) > 0.5))
+        # lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[2]["mean"]), axis=0) > 0.5))
+        X=np.vstack((np.vstack(data_x.loc[folds["train"][fold]].values), np.vstack(data_x.loc[folds["val"][fold]].values)))
+        W_2norm += np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
 
         c += 1
+    elbo_max = np.argmax(elbo)
+    k_min = np.argmin(Ks)
+
+
+    W_byfold[fold, :] = W_2norm/5
 
     # # TODO: Dibujar pesos ARD para cada fold
     # f, axs = plt.subplots(1,5, figsize=(16,9))
@@ -146,6 +168,8 @@ for fold in range(10):
     #     ax.label_outer()
 
     # # TODO: Dibujar W primal space
+    
+
     # f, axs = plt.subplots(1,5, figsize=(16,9))
     # f.suptitle('2norm of W_d primal '+familia)
 
@@ -231,7 +255,7 @@ for fold in range(10):
 
 
 
-    # Dibujar auc por familia
+    # # TODO: Dibujar auc por familia
     fig, ax = plt.subplots()
     width = 0.15
     x = np.arange(len(familias[familia]))
@@ -249,15 +273,82 @@ for fold in range(10):
     ax.legend()
     fig.tight_layout()
 
-    plt.show()
+    # plt.show()
     resultados.append(auc_by_ab)
 
     print("Results"+str(np.mean(auc_by_ab, axis=0))+"+/-"+str(np.std(auc_by_ab, axis=0)))
     # print(np.mean(np.hstack(resultados), axis=0))
     # print(np.std(np.hstack(resultados), axis=0))
 
+
 print("Resultados finales:")
 print("Mean")
 print(np.mean(np.vstack(resultados), axis=0))
 print("STD")
 print(np.std(np.vstack(resultados), axis=0))
+
+
+# TODO: Sacar vistas comunes
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+for f in range(10):
+    plt.figure(figsize=[20,10])
+    ax = plt.gca()
+    plt.title("Latent space distribution by views  for fold "+str(f))
+    matrix_views = np.zeros((3,models_sel[f].q_dist.W[0]['mean'].shape[1]))
+    matrix_views[0, :]=np.mean(np.abs(models_sel[f].q_dist.W[0]['mean']), axis=0)
+    matrix_views[1, :]=np.mean(np.abs(models_sel[f].q_dist.W[1]['mean']), axis=0)  
+    matrix_views[2, :]=np.mean(np.abs(models_sel[f].q_dist.W[2]['mean']), axis=0)    
+    plt.xlabel("K features latent space")
+    plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
+    plt.xticks(range(models_sel[f].q_dist.W[0]['mean'].shape[1]))
+    im = ax.imshow(matrix_views, cmap="binary")
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
+    plt.show()
+
+
+# # TODO: Sacar la W por familia SOLO SI EL KERNEL ES LINEAL
+# plt.figure()
+# plt.title(familia+": W primal space")
+# for i in range(10):
+#     label = "Fold "+str(i)
+#     plt.plot(W_byfold[i, :], label=label)
+# plt.legend()
+# plt.show()
+# plt.figure()
+# plt.title(familia+": Random sample with W primal space over it")
+# plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
+# plt.plot(np.mean(W_byfold, axis=0), label="W primal space mean", alpha=0.2)
+# plt.legend()
+# plt.show()
+# W_byfam = np.zeros((7, 10000))
+# for j, familia in enumerate(familias):
+#     with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
+#         data = pickle.load(pkl)
+#     with open("./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
+#         folds = pickle.load(pkl)
+#     data_x = data['maldi']
+#     W_byfold = np.zeros((10, 10000))
+
+#     for fold in range(10):
+#         modelo_a_cargar = "./Results/mediana_10fold_rbf/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
+#         with open(modelo_a_cargar, 'rb') as pkl:
+#             results = pickle.load(pkl)
+#         W_2norm=0
+#         for i in range(5):
+#             model="model_fold"+str(i)
+#             X=np.vstack((np.vstack(data_x.loc[folds["train"][fold]].values), np.vstack(data_x.loc[folds["val"][fold]].values)))
+#             W_2norm += np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
+
+#         W_byfold[fold, :] = W_2norm/5
+
+#     W_byfam[j, :] = np.mean(W_byfold, axis=0)
+
+# plt.figure(figsize=[20, 10])
+# plt.title("W primal space by family")
+# for j, familia in enumerate(familias):
+#     plt.plot(W_byfam[j, :], label=familia)
+# plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
+# plt.legend()
+# plt.show()

@@ -18,13 +18,12 @@ def notify_ending(message):
 
 
 # FAMILIAS
-familias = {
-                    "penicilinas": ['AMOXI/CLAV .1', 'PIP/TAZO.1'],
+familias = { "penicilinas": ['AMOXI/CLAV .1', 'PIP/TAZO.1'],
                     "cephalos": ['CEFTAZIDIMA.1', 'CEFOTAXIMA.1', 'CEFEPIME.1'],
                     "monobactams": ['AZTREONAM.1'],
                     "carbapenems": ['IMIPENEM.1', 'MEROPENEM.1', 'ERTAPENEM.1'],
+                    "aminos": ['GENTAMICINA.1', 'TOBRAMICINA.1', 'AMIKACINA.1', 'FOSFOMICINA.1'],
                     "fluoro":['CIPROFLOXACINO.1'],
-                    "aminos": ['GENTAMICINA.1', 'TOBRAMICINA.1'],
                     "otros":['COLISTINA.1']
                     }
 
@@ -33,14 +32,14 @@ full = True
 hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-1, "max_it": int(1500)}}
 
 # for familia in familias:
-familia = "cephalos"
+familia = "penicilinas"
 
 for fold in range(5):
     for familia in familias:
         print(familia)
-        data_path = "./data/ryc_data_mediansample_only2-12_noamika_nofosfo_TIC.pkl"
-        folds_path = "./data/RyC_5STRATIFIEDfolds_noamika_nofosfo_"+familia+".pkl"
-        store_path = "Results/RyC_5fold"+str(fold)+"_noamika_nofosfo_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+        data_path = "./data/ryc_data_mediansample_only2-12_TIC.pkl"
+        folds_path = "./data/RYC_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
+        store_path = "Results/mediana_10fold_rbf/RyC_10fold"+str(fold)+"_muestrascompensadas_ARDgamma_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path + "\n Folds used: " + folds_path +\
                 "\n Storage name: "+store_path
 
@@ -76,17 +75,13 @@ for fold in range(5):
             x1 = np.vstack((np.vstack(x1_tr.values), np.vstack(x1_val.values))).astype(float)
             # Genotype
             x2 = np.vstack((np.vstack(x2_tr.values), np.vstack(x2_val.values))).astype(float)
-            # Both together in one multilabel
-            x_fengen = np.hstack((x1, x2))
-
 
             # Familias
             y0 = np.vstack((np.vstack(y_tr[familias[familia]].values)))
 
             myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
             print(x0.shape)
-            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="linear", sparse_fs=0)
-            # X0 = myModel_mul.struct_data(x0, method="reg", sparse=1)
+            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="rbf", sparse_fs=1)
             X1 = myModel_mul.struct_data(x1, method="mult")
             X2 = myModel_mul.struct_data(x2, method="mult")
             Y0 = myModel_mul.struct_data(y0.astype(float), method="mult")

@@ -101,25 +101,46 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 for fam in familias:
     complete_samples = np.unique(ryc_full_data[~ryc_full_data[familias[fam]].isna().any(axis=1)].index)
     missing_samples = np.unique(ryc_full_data[ryc_full_data[familias[fam]].isna().any(axis=1)].index)
-    fold_storage_name = "data/RyC_5STRATIFIEDfolds_both_"+fam+".pkl"
+    fold_storage_name = "data/RYC_10STRATIFIEDfolds_muestrascompensadas_"+fam+".pkl"
     ryc_complete_y= ryc_full_data[familias[fam]].loc[complete_samples]
     if ryc_complete_y.shape[1]>1:
-        mskf = MultilabelStratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+        mskf = MultilabelStratifiedKFold(n_splits=10, shuffle=True, random_state=0)
     else: 
-        mskf = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
-    ryc_folds = {"train": [], "val": []}
+        mskf = StratifiedKFold(n_splits=10, shuffle=True, random_state=0)
+    gm_folds = {"train": [], "val": []}
     for tr_idx, tst_idx in mskf.split(complete_samples, ryc_complete_y):
-        train_with_missing = np.concatenate([complete_samples[tr_idx], missing_samples])
-        ryc_folds["train"].append(train_with_missing)
-        ryc_folds["val"].append(complete_samples[tst_idx])
+        train_samples = complete_samples[tr_idx]
+        test_samples = complete_samples[tst_idx]
         for ab in familias[fam]:
-            if ryc_complete_y[ab].loc[complete_samples[tst_idx]].value_counts().shape[0]<2:
+            # COMPROBAR SI ESTÁN DESCOMPENSADAS EN ENTRENAMIENTO
+            low_appear_value = int(ryc_complete_y[ab].loc[train_samples].value_counts().index[1])
+            n_repeats = abs(np.diff(ryc_complete_y[ab].loc[train_samples].value_counts()))
+            if int(n_repeats) > int(50):
+                low_appear_rep_idx = ryc_complete_y[ab].loc[train_samples][ryc_complete_y[ab].loc[train_samples]==low_appear_value].sample(n_repeats, replace=1).index
+                train_samples = np.concatenate([train_samples, low_appear_rep_idx])
+            
+            # COMPROBAR SI TENGO MUESTRAS DE LOS DOS TIPOS EN TEST
+            if ryc_complete_y[ab].loc[test_samples].value_counts().shape[0]<2:
                 print("NO STRATIFIED FOR AB: "+ab)
-                print(ryc_complete_y[ab].loc[complete_samples[tst_idx]].value_counts())
+                print(ryc_complete_y[ab].loc[test_samples].value_counts())
+                # Mirar cuale s el valor que no tenemos en test
+                no_samples_value = int(np.logical_not(ryc_complete_y[ab].loc[test_samples].value_counts().index[0]))
+                # Buscamos el valor entre los de training
+                new_test_sample = ryc_complete_y[ab].loc[train_samples][ryc_complete_y[ab].loc[train_samples]==no_samples_value].sample(1).index
+                # Lo metemos en test y lo eliminamos de train
+                test_samples = np.concatenate([test_samples, new_test_sample])
+                train_samples = train_samples[train_samples != new_test_sample[0]]
+                print("Ahora debería estar correcto "+ab)
+                print(ryc_complete_y[ab].loc[test_samples].value_counts())
+
+        train_samples = np.concatenate([train_samples, missing_samples])   
+        gm_folds["train"].append(train_samples)
+        gm_folds["val"].append(test_samples)
+    
     with open(fold_storage_name, 'wb') as f:
-        pickle.dump(ryc_folds, f)
+        pickle.dump(gm_folds, f)
 
-
+print("a ver")
 # from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
 # mskf = MultilabelStratifiedKFold(n_splits=5, shuffle=True, random_state=0)

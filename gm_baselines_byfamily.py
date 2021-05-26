@@ -9,6 +9,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score as auc
 import matplotlib.pyplot as plt
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.svm import SVC
 
 def notify_ending(message):
     with open('./keys_file.json', 'r') as keys_file:
@@ -66,25 +68,24 @@ for i, familia in enumerate(familias):
 
         y_tr = hgm_data['binary_ab'][familias[familia]].loc[hgm_folds["train"][fold]].values
         y_tst = hgm_data['binary_ab'][familias[familia]].loc[hgm_folds["val"][fold]].values
-
-        # rfc=RFC(random_state=42)
-        knn = KNeighborsClassifier(n_jobs=-1)
-        param_grid = {'n_neighbors': range(1,20)}
-        # param_grid = {'n_estimators': [100],
-                        # 'max_features': ['auto', 'sqrt', 'log2'],
-                        # 'criterion' :['gini']}
-        # param_grid = {'n_estimators': [200, 500],
-        #                 'max_features': ['auto', 'sqrt', 'log2'],
-        #                 'max_depth' : [4,5,6,7,8],
-        #                 'criterion' :['gini', 'entropy']}
-
-        CV_rfc = GridSearchCV(estimator=knn, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
-
+        
         if y_tst.shape[1]==1:
             y_tr = y_tr.ravel()
+            clf=SVC(probability=1, kernel="linear")
+            param_grid = {'C': [0.01, 0.1 , 1, 10]}
+        else:
+            clf = MultiOutputClassifier(SVC(probability=True, kernel="linear"))
+            param_grid = {'estimator__C': [0.01, 0.1 , 1, 10]}     
+            # knn = KNeighborsClassifier(n_jobs=-1)
+            # param_grid = {'n_neighbors': range(1,20)}
+            # rfc=RFC(random_state=42)
+            # param_grid = {'n_estimators': [100],
+                            # 'max_features': ['auto', 'sqrt', 'log2'],
+                            # 'criterion' :['gini']}
 
-
+        CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
         CV_rfc.fit(x_tr, y_tr)
+
         print(CV_rfc.best_params_)
         y_pred_clf = CV_rfc.predict_proba(x_tst)
         y_pred = np.zeros(y_tst.shape)
