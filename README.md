@@ -34,7 +34,7 @@ The scripts gm_baselines_byfamily and ryc_baselines_byfamily basically runs all 
 - KNN: 5 and 10 fold.
 
 ## SSHIBA model:
-The model used to learn the data is **SSHIBA** [[2]](#2) and its kernel approach **KSSHIBA* [[3]](#3). 
+The model used to learn the data is **SSHIBA** [[2]](#2) and its kernel approach **KSSHIBA** [[3]](#3). 
 * First approach, 1 unique model:
     - Input views:
         - MALDI linear/rbf kernel.
