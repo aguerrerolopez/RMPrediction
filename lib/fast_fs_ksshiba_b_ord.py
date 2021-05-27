@@ -1801,7 +1801,7 @@ class SparseELBO(nn.Module):
                 lengthscale = leng * torch.ones([self.X.shape[1],]).to(self.device),
                 active_dims = range(X.shape[1]))
             self.kernel.lengthscale_unconstrained.requires_grad = is_leng
-            self.kernel.variance_unconstrained.requires_grad = True
+            self.kernel.variance_unconstrained.requires_grad = is_var
         elif self.k_type == 'linear':
             var = 0*torch.ones([self.X.shape[1],]).to(self.device)
             # var[2500:12500] = 1

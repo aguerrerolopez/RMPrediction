@@ -37,7 +37,7 @@ for fold in range(10):
         print(familia)
         data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
         folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
-        store_path = "Results/mediana_10fold_rbf/HGM_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_ARDgamma_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+        store_path = "Results/mediana_10fold_linear/HGM_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path + "\n Folds used: " + folds_path +\
                 "\n Storage name: "+store_path
 
@@ -56,7 +56,7 @@ for fold in range(10):
             folds = pickle.load(pkl)
 
         c = 0
-        for f in range(5):
+        for f in range(3):
             
             print("Training fold: ", c)
             x0_tr, x0_val = maldi.loc[folds["train"][fold]], maldi.loc[folds["val"][fold]]
@@ -89,7 +89,7 @@ for fold in range(10):
 
             myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
             print(x0.shape)
-            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="rbf", sparse_fs=1)
+            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="linear", sparse_fs=0)
             # X0 = myModel_mul.struct_data(x0, method="reg", sparse=1)
             X1 = myModel_mul.struct_data(x1, method="mult")
             # X2 = myModel_mul.struct_data(x2, method="mult")

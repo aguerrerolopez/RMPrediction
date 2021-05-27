@@ -19,13 +19,13 @@ def plot_W(W, title):
     plt.show()
 
 
-ryc = False
-hgm = True
+ryc = True
+hgm = False
 both = False
 no_ertapenem = False
 resultados = []
 
-familia="penicilinas"
+familia="otros"
 W_byfold = np.zeros((10, 10000))
 models_sel = [None]*10
 print("############################## "+familia+" ############################## ")
@@ -43,12 +43,14 @@ for fold in range(10):
                     "monobactams": ['AZTREONAM.1'],
                     "carbapenems": ['IMIPENEM.1', 'MEROPENEM.1', 'ERTAPENEM.1'],
                     "fluoro":['CIPROFLOXACINO.1'],
-                    "aminos": ['GENTAMICINA.1', 'TOBRAMICINA.1'],
+                    "aminos": ['GENTAMICINA.1', 'TOBRAMICINA.1', 'AMIKACINA.1', 'FOSFOMICINA.1'],
                     "otros":['COLISTINA.1']
                     }
-        with open("./data/ryc_data_mediansample_only2-12_noamika_nofosfo_TIC.pkl", 'rb') as pkl:
+        data_path = "./data/ryc_data_mediansample_only2-12_TIC.pkl"
+        folds_path = "./data/RYC_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
+        with open(data_path, 'rb') as pkl:
             data = pickle.load(pkl)
-        with open("./data/RyC_5STRATIFIEDfolds_noamika_nofosfo_"+familia+".pkl", 'rb') as pkl:
+        with open(folds_path, 'rb') as pkl:
             folds = pickle.load(pkl)
 
     if hgm:
@@ -120,16 +122,17 @@ for fold in range(10):
         
     c = 0
     lf_imp = []
-    auc_by_ab = np.zeros((5,len(familias[familia])))
+    auc_by_ab = np.zeros((3,len(familias[familia])))
     W_2norm=0
 
     elbo=[]
     Ks = [1e5]
-    for i in range(5):
+    sigma = []
+    for i in range(3):
         model = "model_fold" + str(c)
 
         elbo.append(results[model].L[-1])
-
+        sigma.append(results[model].sig[0])
         if results[model].q_dist.W[2]["mean"].shape[1]<Ks[-1]:
             models_sel[fold] = results[model]
         Ks.append(results[model].q_dist.W[0]["mean"].shape[1])
@@ -140,10 +143,10 @@ for fold in range(10):
         for i_pred in range(auc_by_ab.shape[1]):
             auc_by_ab[c, i_pred] = roc_auc_score(y_tst[:, i_pred], y_pred[:, i_pred])
             
+        
         # lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[2]["mean"]), axis=0) > 0.5))
         X=np.vstack((np.vstack(data_x.loc[folds["train"][fold]].values), np.vstack(data_x.loc[folds["val"][fold]].values)))
         W_2norm += np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
-
         c += 1
     elbo_max = np.argmax(elbo)
     k_min = np.argmin(Ks)
@@ -151,19 +154,31 @@ for fold in range(10):
 
     W_byfold[fold, :] = W_2norm/5
 
+    # TODO: Dibujar sigma del rbf
+    # print("Sigma values")
+    # print(sigma)
+    # plt.figure()
+    # plt.plot(range(5),sigma, 'o')
+    # plt.plot(range(5),sigma)
+    # plt.xticks(range(5))
+    # plt.ylabel("Sigma value")
+    # plt.xlabel("Initializations")
+    # plt.title("Sigma value for fold "+str(fold))
+    # plt.show()
+
     # # TODO: Dibujar pesos ARD para cada fold
     # f, axs = plt.subplots(1,5, figsize=(16,9))
     # f.suptitle('ARD WEIGHTS '+familia)
     # axs[0].set_title("Init 0")
-    # axs[0].stem(results["model_fold0"].sparse_K[0].get_params()[1])
+    # axs[0].stem(results["model_fold0"].sparse_K[0].get_params()[2])
     # axs[1].set_title("Init 1")
-    # axs[1].stem(results["model_fold1"].sparse_K[0].get_params()[1])
+    # axs[1].stem(results["model_fold1"].sparse_K[0].get_params()[2])
     # axs[2].set_title("Init 2")
-    # axs[2].stem(results["model_fold2"].sparse_K[0].get_params()[1])
+    # axs[2].stem(results["model_fold2"].sparse_K[0].get_params()[2])
     # axs[3].set_title("Init 3")
-    # axs[3].stem(results["model_fold3"].sparse_K[0].get_params()[1])
+    # axs[3].stem(results["model_fold3"].sparse_K[0].get_params()[2])
     # axs[4].set_title("Init 4")
-    # axs[4].stem(results["model_fold4"].sparse_K[0].get_params()[1])
+    # axs[4].stem(results["model_fold4"].sparse_K[0].get_params()[2])
     # for ax in axs.flat:
     #     ax.label_outer()
 
@@ -256,22 +271,22 @@ for fold in range(10):
 
 
     # # TODO: Dibujar auc por familia
-    fig, ax = plt.subplots()
-    width = 0.15
-    x = np.arange(len(familias[familia]))
-    rects1 = ax.bar(x - 4*width/2, auc_by_ab[0, :], width, label='Init0')
-    rects0 = ax.bar(x - 2*width/2, auc_by_ab[1, :], width, label='Init1')
-    rects2 = ax.bar(x, auc_by_ab[2, :], width, label='Init2')
-    rects4 = ax.bar(x + 2*width/2, auc_by_ab[3, :], width, label='Init3')
-    rects3 = ax.bar(x + 4*width/2, auc_by_ab[4, :], width, label='Init4')
-    ax.axhline(y=0.5, color='r')
-    ax.set_ylabel('AUC')
-    ax.set_ylim(bottom=0.2, top=1)
-    ax.set_title('RyC '+familia+': AUC by AB in fold '+str(fold))
-    ax.set_xticks(x)
-    ax.set_xticklabels(familias[familia], rotation=30, fontsize='xx-small')
-    ax.legend()
-    fig.tight_layout()
+    # fig, ax = plt.subplots()
+    # width = 0.15
+    # x = np.arange(len(familias[familia]))
+    # rects1 = ax.bar(x - 4*width/2, auc_by_ab[0, :], width, label='Init0')
+    # rects0 = ax.bar(x - 2*width/2, auc_by_ab[1, :], width, label='Init1')
+    # rects2 = ax.bar(x, auc_by_ab[2, :], width, label='Init2')
+    # # rects4 = ax.bar(x + 2*width/2, auc_by_ab[3, :], width, label='Init3')
+    # # rects3 = ax.bar(x + 4*width/2, auc_by_ab[4, :], width, label='Init4')
+    # ax.axhline(y=0.5, color='r')
+    # ax.set_ylabel('AUC')
+    # ax.set_ylim(bottom=0.2, top=1)
+    # ax.set_title(hospital+' '+familia+': AUC by AB in fold '+str(fold))
+    # ax.set_xticks(x)
+    # ax.set_xticklabels(familias[familia], rotation=30, fontsize='xx-small')
+    # ax.legend()
+    # fig.tight_layout()
 
     # plt.show()
     resultados.append(auc_by_ab)
@@ -289,23 +304,27 @@ print(np.std(np.vstack(resultados), axis=0))
 
 
 # TODO: Sacar vistas comunes
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-for f in range(10):
-    plt.figure(figsize=[20,10])
-    ax = plt.gca()
-    plt.title("Latent space distribution by views  for fold "+str(f))
-    matrix_views = np.zeros((3,models_sel[f].q_dist.W[0]['mean'].shape[1]))
-    matrix_views[0, :]=np.mean(np.abs(models_sel[f].q_dist.W[0]['mean']), axis=0)
-    matrix_views[1, :]=np.mean(np.abs(models_sel[f].q_dist.W[1]['mean']), axis=0)  
-    matrix_views[2, :]=np.mean(np.abs(models_sel[f].q_dist.W[2]['mean']), axis=0)    
-    plt.xlabel("K features latent space")
-    plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
-    plt.xticks(range(models_sel[f].q_dist.W[0]['mean'].shape[1]))
-    im = ax.imshow(matrix_views, cmap="binary")
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    plt.colorbar(im, cax=cax)
-    plt.show()
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# for f in range(10):
+#     plt.figure(figsize=[20,10])
+#     ax = plt.gca()
+#     plt.title("Latent space distribution by views  for fold "+str(f))
+#     if hgm: matrix_views = np.zeros((3,models_sel[f].q_dist.W[0]['mean'].shape[1]))
+#     else: matrix_views = np.zeros((4,models_sel[f].q_dist.W[0]['mean'].shape[1]))
+#     matrix_views[0, :]=np.mean(np.abs(models_sel[f].q_dist.W[0]['mean']), axis=0)
+#     matrix_views[1, :]=np.mean(np.abs(models_sel[f].q_dist.W[1]['mean']), axis=0)  
+#     matrix_views[2, :]=np.mean(np.abs(models_sel[f].q_dist.W[2]['mean']), axis=0) 
+#     if not hgm:  matrix_views[3, :]=np.mean(np.abs(models_sel[f].q_dist.W[3]['mean']), axis=0) 
+
+#     plt.xlabel("K features latent space")
+#     if hgm: plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
+#     else: plt.yticks(np.arange(4), ["Maldi", "Fenotype", "Genotype", "Antibiotic"])
+#     plt.xticks(range(models_sel[f].q_dist.W[0]['mean'].shape[1]))
+#     im = ax.imshow(matrix_views, cmap="binary")
+#     divider = make_axes_locatable(ax)
+#     cax = divider.append_axes("right", size="5%", pad=0.05)
+#     plt.colorbar(im, cax=cax)
+#     plt.show()
 
 
 # # TODO: Sacar la W por familia SOLO SI EL KERNEL ES LINEAL

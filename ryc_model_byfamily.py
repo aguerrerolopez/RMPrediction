@@ -34,12 +34,12 @@ hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-1, "m
 # for familia in familias:
 familia = "penicilinas"
 
-for fold in range(5):
+for fold in np.arange(0, 10):
     for familia in familias:
         print(familia)
         data_path = "./data/ryc_data_mediansample_only2-12_TIC.pkl"
         folds_path = "./data/RYC_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
-        store_path = "Results/mediana_10fold_rbf/RyC_10fold"+str(fold)+"_muestrascompensadas_ARDgamma_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+        store_path = "Results/mediana_10fold_linear/RyC_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path + "\n Folds used: " + folds_path +\
                 "\n Storage name: "+store_path
 
@@ -81,7 +81,7 @@ for fold in range(5):
 
             myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
             print(x0.shape)
-            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="rbf", sparse_fs=1)
+            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="linear", sparse_fs=0)
             X1 = myModel_mul.struct_data(x1, method="mult")
             X2 = myModel_mul.struct_data(x2, method="mult")
             Y0 = myModel_mul.struct_data(y0.astype(float), method="mult")
