@@ -23,7 +23,7 @@ familia="otros"
 
 fold=0
 
-modelo_a_cargar= "./Results/mediana_noard_trainHGM_predictRyC/TrainHGM_PredictRyC_2-12maldi_"+familia+"_prun0.1.pkl"
+modelo_a_cargar= "./Results/mediana_10fold_linear/TrainHGM_PredictRyC_2-12maldi_"+familia+"_prun0.1.pkl"
 
 familias = {
             "penicilinas": ['AMOXI/CLAV .1', 'PIP/TAZO.1'],
@@ -50,7 +50,7 @@ for i in range(5):
     model = "model_fold" + str(c)
     
     y_tst = y_true[familias[familia]].to_numpy().astype(float)
-    y_pred = results[model].t[3]["mean"][-y_tst.shape[0]:, :]
+    y_pred = results[model].t[2]["mean"][-y_tst.shape[0]:, :]
 
     for i_pred in range(auc_by_ab.shape[1]):
         y_tst_complete = y_tst[:, i_pred][~np.isnan(y_tst[:, i_pred])]

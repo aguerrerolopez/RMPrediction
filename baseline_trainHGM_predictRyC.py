@@ -66,15 +66,19 @@ for i, familia in enumerate(familias):
     else:
         delay=0
     
+    folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
+    with open(folds_path, 'rb') as pkl:
+            folds = pickle.load(pkl)
 
-    hgm_complete_samples = np.unique(hgm_data['binary_ab'][familias_hgm[familia]][~hgm_data['binary_ab'][familias_hgm[familia]].isna().any(axis=1)].index)
+
     ryc_complete_samples = np.unique(ryc_data['binary_ab'][familias_ryc[familia]][~ryc_data['binary_ab'][familias_ryc[familia]].isna().any(axis=1)].index)
-
+    hgm_x_tr, hgm_x_tst = hgm_data['maldi'].loc[folds["train"][0]], hgm_data['maldi'].loc[folds["val"][0]]
+    hgm_y_tr, hgm_y_tst = hgm_data['binary_ab'].loc[folds["train"][0]], hgm_data['binary_ab'].loc[folds["val"][0]]
     
-    x_tr = np.vstack(hgm_data['maldi'].loc[hgm_complete_samples].values)
+    x_tr = np.vstack((hgm_x_tr.values, hgm_x_tst.values))
     x_tst = np.vstack(ryc_data['maldi'].loc[ryc_complete_samples].values)
 
-    y_tr = hgm_data['binary_ab'][familias_hgm[familia]].loc[hgm_complete_samples].values
+    y_tr = np.vstack((hgm_y_tr.values, hgm_y_tst.values))
     y_tst = ryc_data['binary_ab'][familias_ryc[familia]].loc[ryc_complete_samples].values
 
     rfc=RFC(random_state=42)

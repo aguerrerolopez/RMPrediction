@@ -50,15 +50,15 @@ with open(data_path, 'rb') as pkl:
 
 for familia in familias_ryc:
 
-    folds_path = "./data/HGM_5STRATIFIEDfolds_"+familia+".pkl"
+    folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
     with open(folds_path, 'rb') as pkl:
        folds_hgm = pickle.load(pkl)
 
-    folds_path = "./data/RyC_5STRATIFIEDfolds_both_"+familia+".pkl"
+    folds_path = "./data/RYC_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
     with open(folds_path, 'rb') as pkl:
        folds_ryc = pickle.load(pkl)
 
-    for f in range(5):
+    for f in range(10):
         print(familia)
 
         x0_tr = np.vstack((np.vstack(hgm_data['maldi'].loc[folds_hgm["train"][f]].values), np.vstack(ryc_data['maldi'].loc[folds_ryc["train"][f]].values)))
@@ -82,7 +82,7 @@ for familia in familias_ryc:
         x2 = np.vstack((x2_tr, x2_tst))
         x3 = np.vstack((x3_tr, x3_tst))
         
-        store_path = "Results/mediana_noard_both/Both_5fold"+str(f)+"_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+        store_path = "Results/mediana_10fold_rbf/Both_5fold"+str(f)+"_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path +"\n Storage name: "+store_path
 
         results = {}
@@ -93,7 +93,7 @@ for familia in familias_ryc:
             myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
             print(x0.shape)
             # maldi
-            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="linear", sparse_fs=0)
+            X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel="rbf", sparse_fs=0)
             # fenot
             X1 = myModel_mul.struct_data(x1, method="mult")
             # genot

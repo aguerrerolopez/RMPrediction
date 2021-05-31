@@ -7,6 +7,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score as auc
 import matplotlib.pyplot as plt
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.svm import SVC
 
 def notify_ending(message):
     with open('./keys_file.json', 'r') as keys_file:
@@ -36,7 +38,7 @@ with open(data_path, 'rb') as pkl:
         ryc_data = pickle.load(pkl)
 
 random_states = [0, 10, 20, 30, 40]
-results = np.zeros((5,15))
+results = np.zeros((10,15))
 
 for i, familia in enumerate(familias):
     if familia=="cephalos":
@@ -54,34 +56,36 @@ for i, familia in enumerate(familias):
     else:
         delay=0
     
-    folds_path = "./data/RyC_5STRATIFIEDfolds_both_nomissings_"+familia+".pkl"
+    folds_path = "./data/RYC_10STRATIFIEDfolds_nomissing_muestrascompensadas_"+familia+".pkl"
     with open(folds_path, 'rb') as pkl:
         ryc_folds = pickle.load(pkl)
 
     plt.figure()
-    for fold in range(5):
+    for fold in range(10):
         x_tr = np.vstack(ryc_data['maldi'].loc[ryc_folds["train"][fold]].values)
         x_tst = np.vstack(ryc_data['maldi'].loc[ryc_folds["val"][fold]].values)
 
         y_tr = ryc_data['binary_ab'][familias[familia]].loc[ryc_folds["train"][fold]].values
         y_tst = ryc_data['binary_ab'][familias[familia]].loc[ryc_folds["val"][fold]].values
 
-        rfc=RFC(random_state=42)
-        param_grid = {'n_estimators': [100],
-                        'max_features': ['auto', 'sqrt', 'log2'],
-                        'criterion' :['gini']}
-        # param_grid = {'n_estimators': [200, 500],
-        #                 'max_features': ['auto', 'sqrt', 'log2'],
-        #                 'max_depth' : [4,5,6,7,8],
-        #                 'criterion' :['gini', 'entropy']}
-
-        CV_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv=5, n_jobs=-1)
-
         if y_tst.shape[1]==1:
             y_tr = y_tr.ravel()
+            clf=SVC(probability=1, kernel="linear")
+            param_grid = {'C': [0.01, 0.1 , 1, 10]}
+        else:
+            clf = MultiOutputClassifier(SVC(probability=True, kernel="linear"))
+            param_grid = {'estimator__C': [0.01, 0.1 , 1, 10]}     
+            # knn = KNeighborsClassifier(n_jobs=-1)
+            # param_grid = {'n_neighbors': range(1,20)}
+            # rfc=RFC(random_state=42)
+            # param_grid = {'n_estimators': [100],
+                            # 'max_features': ['auto', 'sqrt', 'log2'],
+                            # 'criterion' :['gini']}
 
-
+        CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
         CV_rfc.fit(x_tr, y_tr)
+
+        print(CV_rfc.best_params_)
 
         y_pred_clf = CV_rfc.predict_proba(x_tst)
         y_pred = np.zeros(y_tst.shape)
@@ -92,12 +96,14 @@ for i, familia in enumerate(familias):
             for c in range(len(y_pred_clf)):
                 results[fold, c+delay] = auc(y_tst[:, c], y_pred_clf[c][:, 1])
 
-        plt.plot(CV_rfc.best_estimator_.feature_importances_, label="| Fold:" +str(fold))
+        # plt.plot(CV_rfc.best_estimator_.feature_importances_, label="| Fold:" +str(fold))
     plt.legend()
     plt.title("Familia: "+familia)
     plt.show()
 
 print(results)
+print(np.mean(results, axis=0))
+print(np.std(results, axis=0))
 
 
 

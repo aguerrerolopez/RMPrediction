@@ -101,7 +101,7 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 for fam in familias:
     complete_samples = np.unique(ryc_full_data[~ryc_full_data[familias[fam]].isna().any(axis=1)].index)
     missing_samples = np.unique(ryc_full_data[ryc_full_data[familias[fam]].isna().any(axis=1)].index)
-    fold_storage_name = "data/RYC_10STRATIFIEDfolds_muestrascompensadas_"+fam+".pkl"
+    fold_storage_name = "data/RYC_10STRATIFIEDfolds_nomissing_muestrascompensadas_"+fam+".pkl"
     ryc_complete_y= ryc_full_data[familias[fam]].loc[complete_samples]
     if ryc_complete_y.shape[1]>1:
         mskf = MultilabelStratifiedKFold(n_splits=10, shuffle=True, random_state=0)
@@ -133,7 +133,7 @@ for fam in familias:
                 print("Ahora debería estar correcto "+ab)
                 print(ryc_complete_y[ab].loc[test_samples].value_counts())
 
-        train_samples = np.concatenate([train_samples, missing_samples])   
+        # train_samples = np.concatenate([train_samples, missing_samples])   
         gm_folds["train"].append(train_samples)
         gm_folds["val"].append(test_samples)
     

@@ -19,13 +19,13 @@ def plot_W(W, title):
     plt.show()
 
 
-ryc = True
-hgm = False
+ryc = False
+hgm = True
 both = False
 no_ertapenem = False
 resultados = []
 
-familia="otros"
+familia="penicilinas"
 W_byfold = np.zeros((10, 10000))
 models_sel = [None]*10
 print("############################## "+familia+" ############################## ")
@@ -289,7 +289,7 @@ for fold in range(10):
     # fig.tight_layout()
 
     # plt.show()
-    resultados.append(auc_by_ab)
+    resultados.append(np.mean(auc_by_ab, axis=0))
 
     print("Results"+str(np.mean(auc_by_ab, axis=0))+"+/-"+str(np.std(auc_by_ab, axis=0)))
     # print(np.mean(np.hstack(resultados), axis=0))
@@ -298,34 +298,54 @@ for fold in range(10):
 
 print("Resultados finales:")
 print("Mean")
-print(np.mean(np.vstack(resultados), axis=0))
+mean_result= np.mean(np.vstack(resultados), axis=0)
+print(mean_result)
 print("STD")
 print(np.std(np.vstack(resultados), axis=0))
 
 
 # TODO: Sacar vistas comunes
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
-# for f in range(10):
-#     plt.figure(figsize=[20,10])
-#     ax = plt.gca()
-#     plt.title("Latent space distribution by views  for fold "+str(f))
-#     if hgm: matrix_views = np.zeros((3,models_sel[f].q_dist.W[0]['mean'].shape[1]))
-#     else: matrix_views = np.zeros((4,models_sel[f].q_dist.W[0]['mean'].shape[1]))
-#     matrix_views[0, :]=np.mean(np.abs(models_sel[f].q_dist.W[0]['mean']), axis=0)
-#     matrix_views[1, :]=np.mean(np.abs(models_sel[f].q_dist.W[1]['mean']), axis=0)  
-#     matrix_views[2, :]=np.mean(np.abs(models_sel[f].q_dist.W[2]['mean']), axis=0) 
-#     if not hgm:  matrix_views[3, :]=np.mean(np.abs(models_sel[f].q_dist.W[3]['mean']), axis=0) 
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+k_len = [len(models_sel[f].q_dist.alpha[2]['b']) for f in range(10)]
+k_ords = np.zeros((10, np.max(k_len)))
+if hgm: latent_mean = np.zeros((10, 3, np.max(k_len)))
+else: latent_mean = np.zeros((10, 4, np.max(k_len)))
+for f in range(10):
+    ord_k = np.argsort(models_sel[f].q_dist.alpha[2]['a']/models_sel[f].q_dist.alpha[2]['b'])
+    k_ords[f, :len(ord_k)] = ord_k
+    k_len.append(len(ord_k))
+    plt.figure(figsize=[20,10])
+    ax = plt.gca()
+    plt.title("Latent space distribution by views  for fold "+str(f))
+    if hgm: matrix_views = np.zeros((3,models_sel[f].q_dist.W[0]['mean'].shape[1]))
+    else: matrix_views = np.zeros((4,models_sel[f].q_dist.W[0]['mean'].shape[1]))
+    matrix_views[0, :]=np.mean(np.abs(models_sel[f].q_dist.W[0]['mean']), axis=0)[ord_k]
+    matrix_views[1, :]=np.mean(np.abs(models_sel[f].q_dist.W[1]['mean']), axis=0)[ord_k] 
+    matrix_views[2, :]=np.mean(np.abs(models_sel[f].q_dist.W[2]['mean']), axis=0)[ord_k]
+    if not hgm:  matrix_views[3, :]=np.mean(np.abs(models_sel[f].q_dist.W[3]['mean']), axis=0) 
 
-#     plt.xlabel("K features latent space")
-#     if hgm: plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
-#     else: plt.yticks(np.arange(4), ["Maldi", "Fenotype", "Genotype", "Antibiotic"])
-#     plt.xticks(range(models_sel[f].q_dist.W[0]['mean'].shape[1]))
-#     im = ax.imshow(matrix_views, cmap="binary")
-#     divider = make_axes_locatable(ax)
-#     cax = divider.append_axes("right", size="5%", pad=0.05)
-#     plt.colorbar(im, cax=cax)
-#     plt.show()
+    latent_mean[f, :, :matrix_views.shape[1]] = matrix_views
 
+    plt.xlabel("K features latent space")
+    if hgm: plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
+    else: plt.yticks(np.arange(4), ["Maldi", "Fenotype", "Genotype", "Antibiotic"])
+    plt.xticks(range(0, len(ord_k)), ord_k.tolist())
+    im = ax.imshow(matrix_views, cmap="binary")
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
+    plt.show()
+
+plt.figure(figsize=[20,10])
+plt.title("Latent MEAN space distribution by views")
+ax = plt.gca()
+if hgm: plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
+else: plt.yticks(np.arange(4), ["Maldi", "Fenotype", "Genotype", "Antibiotic"])
+im = ax.imshow(np.mean(latent_mean, axis=0), cmap="binary")
+divider = make_axes_locatable(ax)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+plt.colorbar(im, cax=cax)
+plt.show()
 
 # # TODO: Sacar la W por familia SOLO SI EL KERNEL ES LINEAL
 # plt.figure()
@@ -371,3 +391,34 @@ print(np.std(np.vstack(resultados), axis=0))
 # plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
 # plt.legend()
 # plt.show()
+
+
+# TODO: Proyectar train y test sobre el espacio latente
+fold_proj = np.argmin(np.abs(resultados-mean_result), axis=0)
+
+j=0
+for fold, ab in zip(fold_proj, familias[familia]):
+
+    # Train samples
+    y_tr = data_y[familias[familia]].loc[folds["train"][fold]]
+    y_tr = y_tr.to_numpy().astype(float) 
+    proyection = models_sel[f].q_dist.Z['mean'][:, k_ords[fold, :3].astype(int)][:y_tr.shape[0],:]
+
+    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+    plt.title("Data TRAIN projection in Z using model "+str(fold)+" over antibiotic: "+ab)
+    ax.scatter(proyection[:, 0], proyection[:, 1], proyection[:, 2], c=y_tr[:, j])
+    plt.show()
+
+    # Test samples
+    y_tst = data_y[familias[familia]].loc[folds["val"][fold]]
+    y_tst = y_tst.to_numpy().astype(float)
+
+    proyection = models_sel[f].q_dist.Z['mean'][:, k_ords[fold, :3].astype(int)][-y_tst.shape[0]:,:]
+
+    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+    plt.title("Data TEST projection in Z using model "+str(fold)+" over antibiotic: "+ab)
+    ax.scatter(proyection[:, 0], proyection[:, 1], proyection[:, 2], c=y_tst[:, j])
+    plt.show()
+    j+=1
+
+    
