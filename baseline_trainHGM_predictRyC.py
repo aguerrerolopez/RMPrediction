@@ -6,6 +6,8 @@ from sklearn.ensemble import RandomForestClassifier as RFC
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score as auc
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.svm import SVC
 
 
 def notify_ending(message):
@@ -50,6 +52,7 @@ with open(data_path, 'rb') as pkl:
 
 results = np.zeros((1,15))
 
+coef_by_fam = np.zeros((7, 10000))
 for i, familia in enumerate(familias):
     if familia=="cephalos":
         delay=len(familias["penicilinas"])
@@ -66,33 +69,40 @@ for i, familia in enumerate(familias):
     else:
         delay=0
     
-    folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
+    folds_path = "./data/HGM_10STRATIFIEDfolds_nomissing_muestrascompensadas_"+familia+".pkl"
     with open(folds_path, 'rb') as pkl:
             folds = pickle.load(pkl)
 
 
+    hgm_complete = np.unique(hgm_data['binary_ab'][familias_hgm[familia]][~hgm_data['binary_ab'][familias_hgm[familia]].isna().any(axis=1)].index)
     ryc_complete_samples = np.unique(ryc_data['binary_ab'][familias_ryc[familia]][~ryc_data['binary_ab'][familias_ryc[familia]].isna().any(axis=1)].index)
-    hgm_x_tr, hgm_x_tst = hgm_data['maldi'].loc[folds["train"][0]], hgm_data['maldi'].loc[folds["val"][0]]
-    hgm_y_tr, hgm_y_tst = hgm_data['binary_ab'].loc[folds["train"][0]], hgm_data['binary_ab'].loc[folds["val"][0]]
     
-    x_tr = np.vstack((hgm_x_tr.values, hgm_x_tst.values))
-    x_tst = np.vstack(ryc_data['maldi'].loc[ryc_complete_samples].values)
+    x_tr = np.vstack(hgm_data['maldi'].loc[hgm_complete].values) 
+    y_tr = hgm_data['binary_ab'][familias_hgm[familia]].loc[hgm_complete].values
 
-    y_tr = np.vstack((hgm_y_tr.values, hgm_y_tst.values))
+    x_tst = np.vstack(ryc_data['maldi'].loc[ryc_complete_samples].values)
     y_tst = ryc_data['binary_ab'][familias_ryc[familia]].loc[ryc_complete_samples].values
 
-    rfc=RFC(random_state=42)
-    param_grid = {'n_estimators': [100],
-                    'max_features': ['auto', 'sqrt', 'log2'],
-                    'criterion' :['gini']}
+    # clf=RFC(random_state=42)
+    # param_grid = {'n_estimators': [100],
+    #                 'max_features': ['auto', 'sqrt', 'log2'],
+    #                 'criterion' :['gini']}
+    if y_tst.shape[1]==1:
+        y_tr = y_tr.ravel()
+        clf=SVC(probability=1, kernel="linear")
+        param_grid = {'C': [0.01, 0.1 , 1, 10]}
+    else:
+        clf = MultiOutputClassifier(SVC(probability=True, kernel="linear"))
+        param_grid = {'estimator__C': [0.01, 0.1 , 1, 10]}     
 
-    CV_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv=5, n_jobs=-1)
+    CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1)
 
     if y_tst.shape[1]==1:
         y_tr = y_tr.ravel()
 
 
     CV_rfc.fit(x_tr, y_tr)
+    
 
     y_pred_clf = CV_rfc.predict_proba(x_tst)
     y_pred = np.zeros(y_tst.shape)
@@ -100,13 +110,55 @@ for i, familia in enumerate(familias):
         y_pred = y_pred_clf[:, 1]
         results[0, delay] = auc(y_tst, y_pred)
         print(results)
+        coef_by_fam[i, :]=CV_rfc.best_estimator_.coef_.ravel()
     else:    
-        for c in range(len(y_pred_clf)):
+        coef_mean = 0
+        for c in range(y_tst.shape[1]):
             results[0, c+delay] = auc(y_tst[:, c], y_pred_clf[c][:, 1])
+            coef_mean += CV_rfc.best_estimator_.estimators_[c].coef_.ravel()
             print(results)
+        coef_by_fam[i, :]= coef_mean/y_tst.shape[1]
+    
+    
+    
 print(results)
 
+from matplotlib import pyplot as plt
 
+
+for i, fam in enumerate(familias):
+    plt.figure(figsize=[20, 10])
+    plt.title("Feature importance in mean and std in "+fam)
+    plt.errorbar(x=range(0,10000), y=coef_by_fam[i,:], fmt='o', color='black',
+             ecolor='lightgray',  alpha=0.3, label=fam)
+    plt.show()
+
+
+# JUST A SAMPLE
+familia="carbapenems"
+for ab in familias_ryc[familia]:
+    plt.figure(figsize=[20, 10])
+    plt.title("Resistant and sensible sample for "+ab)
+    plt.plot(coef_by_fam[3, :],marker='o', color="black", alpha=0.2, label="SVM coeficients of "+familia)
+    pos_sample = np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==1].sample(1).index]).ravel()
+    neg_sample = np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==0].sample(1).index]).ravel()
+    plt.plot(pos_sample, color='green', label=ab+": Resistent sample")
+    plt.plot(neg_sample, color='orange', label=ab+": Sensible sample")
+    plt.legend()
+    plt.show()
+
+# MEAN OF THE POS AND NEG SAMPLE
+
+for ab in familias[familia]:
+    plt.figure(figsize=[20, 10])
+    plt.title("Resistant and sensible mean for "+ab)
+    plt.plot(coef_by_fam[3, :],marker='o', color="black", alpha=0.2, label="SVM coeficients of  "+familia)
+    pos_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==1].index]), axis=0)
+    neg_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==0].index]), axis=0)
+    plt.plot(pos_sample, color='green', label=ab+": Resistent MEAN")
+    plt.plot(neg_sample, color='orange', label=ab+": Sensible MEAN")
+    plt.legend()
+    plt.show()
 
 
 

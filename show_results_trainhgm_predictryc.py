@@ -23,7 +23,7 @@ familia="otros"
 
 fold=0
 
-modelo_a_cargar= "./Results/mediana_10fold_linear/TrainHGM_PredictRyC_2-12maldi_"+familia+"_prun0.1.pkl"
+modelo_a_cargar= "./Results/TrainHGM_predictRYC/linear/TrainHGM_PredictRyC_2-12maldi_"+familia+"_prun0.1.pkl"
 
 familias = {
             "penicilinas": ['AMOXI/CLAV .1', 'PIP/TAZO.1'],
@@ -37,6 +37,18 @@ familias = {
 with open("./data/ryc_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
     ryc_data = pickle.load(pkl)
 
+with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
+    hgm_data = pickle.load(pkl)
+
+folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
+with open(folds_path, 'rb') as pkl:
+    folds = pickle.load(pkl)
+
+
+hgm_x0_tr, hgm_x0_tst = np.vstack(hgm_data['maldi'].loc[folds["train"][0]].values), np.vstack(hgm_data['maldi'].loc[folds["val"][0]].values)
+
+X=np.vstack((hgm_x0_tr, hgm_x0_tst, np.vstack(ryc_data['maldi'].values)))
+
 y_true = ryc_data['binary_ab']
 
 with open(modelo_a_cargar, 'rb') as pkl:
@@ -45,6 +57,8 @@ with open(modelo_a_cargar, 'rb') as pkl:
 c = 0
 lf_imp = []
 auc_by_ab = np.zeros((5,len(familias[familia])))
+
+W_2norm = np.zeros((5, 10000))
 
 for i in range(5):
     model = "model_fold" + str(c)
@@ -58,8 +72,44 @@ for i in range(5):
         auc_by_ab[c, i_pred] = roc_auc_score(y_tst_complete, y_pred_complete)
         
     lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[2]["mean"]), axis=0) > 0.5))
-
+    
+    W_2norm[i, :]=np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
+    
     c += 1
+
+Wprimal_mean = np.mean(W_2norm, axis=0)
+Wprimal_std = np.std(W_2norm, axis=0)
+
+plt.figure(figsize=[20, 10])
+plt.title("W primal space in mean and std in "+familia)
+plt.errorbar(x=range(0,10000), y=Wprimal_mean, yerr=Wprimal_std, fmt='o', color='black',
+            ecolor='lightgray',  alpha=0.3, label=familia)
+plt.show()
+
+if familia=="carbapenems":
+    for ab in familias[familia]:
+        plt.figure(figsize=[20, 10])
+        plt.title("Resistant and sensible sample for "+ab)
+        plt.plot(Wprimal_mean,marker='o', color="black", alpha=0.2, label="SVM coeficients of "+familia)
+        pos_sample = np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==1].sample(1).index]).ravel()
+        neg_sample = np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==0].sample(1).index]).ravel()
+        plt.plot(pos_sample, color='green', label=ab+": Resistent sample")
+        plt.plot(neg_sample, color='orange', label=ab+": Sensible sample")
+        plt.legend()
+        plt.show()
+
+    # MEAN OF THE POS AND NEG SAMPLE
+
+    for ab in familias[familia]:
+        plt.figure(figsize=[20, 10])
+        plt.title("Resistant and sensible mean for "+ab)
+        plt.plot(Wprimal_mean,marker='o', color="black", alpha=0.2, label="SVM coeficients of  "+familia)
+        pos_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==1].index]), axis=0)
+        neg_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==0].index]), axis=0)
+        plt.plot(pos_sample, color='green', label=ab+": Resistent MEAN")
+        plt.plot(neg_sample, color='orange', label=ab+": Sensible MEAN")
+        plt.legend()
+        plt.show()
 
 # # TODO: Dibujar pesos ARD para cada fold
 # f, axs = plt.subplots(1,5, figsize=(16,9))
@@ -163,25 +213,26 @@ for i in range(5):
 
 
 
-# Dibujar auc por familia
-fig, ax = plt.subplots()
-width = 0.15
-x = np.arange(len(familias[familia]))
-rects1 = ax.bar(x - 4*width/2, auc_by_ab[0, :], width, label='Init0')
-rects0 = ax.bar(x - 2*width/2, auc_by_ab[1, :], width, label='Init1')
-rects2 = ax.bar(x, auc_by_ab[2, :], width, label='Init2')
-rects4 = ax.bar(x + 2*width/2, auc_by_ab[3, :], width, label='Init3')
-rects3 = ax.bar(x + 4*width/2, auc_by_ab[4, :], width, label='Init4')
-ax.axhline(y=0.5, color='r')
-ax.set_ylabel('AUC')
-ax.set_ylim(bottom=0.2, top=1)
-ax.set_title('RyC '+familia+': AUC by AB in fold '+str(fold))
-ax.set_xticks(x)
-ax.set_xticklabels(familias[familia], rotation=30, fontsize='xx-small')
-ax.legend()
-fig.tight_layout()
 
-plt.show()
+# Dibujar auc por familia
+# fig, ax = plt.subplots()
+# width = 0.15
+# x = np.arange(len(familias[familia]))
+# rects1 = ax.bar(x - 4*width/2, auc_by_ab[0, :], width, label='Init0')
+# rects0 = ax.bar(x - 2*width/2, auc_by_ab[1, :], width, label='Init1')
+# rects2 = ax.bar(x, auc_by_ab[2, :], width, label='Init2')
+# rects4 = ax.bar(x + 2*width/2, auc_by_ab[3, :], width, label='Init3')
+# rects3 = ax.bar(x + 4*width/2, auc_by_ab[4, :], width, label='Init4')
+# ax.axhline(y=0.5, color='r')
+# ax.set_ylabel('AUC')
+# ax.set_ylim(bottom=0.2, top=1)
+# ax.set_title('RyC '+familia+': AUC by AB in fold '+str(fold))
+# ax.set_xticks(x)
+# ax.set_xticklabels(familias[familia], rotation=30, fontsize='xx-small')
+# ax.legend()
+# fig.tight_layout()
+
+# plt.show()
 resultados.append(auc_by_ab)
 
 print("Results"+str(np.mean(auc_by_ab, axis=0))+"+/-"+str(np.std(auc_by_ab, axis=0)))

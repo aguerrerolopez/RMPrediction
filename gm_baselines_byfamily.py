@@ -42,6 +42,8 @@ with open(data_path, 'rb') as pkl:
 random_states = [0, 10, 20, 30, 40]
 results = np.zeros((10,15))
 
+feat_imp_byfam = np.zeros((7, 10000))
+feat_imp_byfam_std =  np.zeros((7, 10000))
 for i, familia in enumerate(familias):
     if familia=="cephalos":
         delay=len(familias["penicilinas"])
@@ -62,6 +64,8 @@ for i, familia in enumerate(familias):
     with open(folds_path, 'rb') as pkl:
         hgm_folds = pickle.load(pkl)
     # plt.figure()
+
+    feat_imp_byfold = np.zeros((10, 10000))
     for fold in range(10):
         x_tr = np.vstack(hgm_data['maldi'].loc[hgm_folds["train"][fold]].values)
         x_tst = np.vstack(hgm_data['maldi'].loc[hgm_folds["val"][fold]].values)
@@ -69,19 +73,23 @@ for i, familia in enumerate(familias):
         y_tr = hgm_data['binary_ab'][familias[familia]].loc[hgm_folds["train"][fold]].values
         y_tst = hgm_data['binary_ab'][familias[familia]].loc[hgm_folds["val"][fold]].values
         
-        if y_tst.shape[1]==1:
-            y_tr = y_tr.ravel()
-            clf=SVC(probability=1, kernel="linear")
-            param_grid = {'C': [0.01, 0.1 , 1, 10]}
-        else:
-            clf = MultiOutputClassifier(SVC(probability=True, kernel="linear"))
-            param_grid = {'estimator__C': [0.01, 0.1 , 1, 10]}     
-            # knn = KNeighborsClassifier(n_jobs=-1)
-            # param_grid = {'n_neighbors': range(1,20)}
-            # rfc=RFC(random_state=42)
-            # param_grid = {'n_estimators': [100],
-                            # 'max_features': ['auto', 'sqrt', 'log2'],
-                            # 'criterion' :['gini']}
+        # if y_tst.shape[1]==1:
+        #     y_tr = y_tr.ravel()
+        #     clf=SVC(probability=1, kernel="linear")
+        #     param_grid = {'C': [0.01, 0.1 , 1, 10]}
+        # else:
+        #     clf = MultiOutputClassifier(SVC(probability=True, kernel="linear"))
+        #     param_grid = {'estimator__C': [0.01, 0.1 , 1, 10]}     
+        #     # knn = KNeighborsClassifier(n_jobs=-1)
+        #     # param_grid = {'n_neighbors': range(1,20)}
+        #     # rfc=RFC(random_state=42)
+        #     # param_grid = {'n_estimators': [100],
+        #                     # 'max_features': ['auto', 'sqrt', 'log2'],
+        #                     # 'criterion' :['gini']}
+        clf = RFC(n_jobs=-1)
+        param_grid = {'n_estimators': [100],
+                            'max_features': ['auto', 'sqrt', 'log2'],
+                            'criterion' :['gini']}
 
         CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
         CV_rfc.fit(x_tr, y_tr)
@@ -99,6 +107,10 @@ for i, familia in enumerate(familias):
                     print(y_pred_clf[c][:, 1])
                 results[fold, c+delay] = auc(y_tst[:, c], y_pred_clf[c][:, 1])
 
+        feat_imp_byfold[fold, :] = CV_rfc.best_estimator_.feature_importances_.ravel()
+
+    feat_imp_byfam[i, :] = np.mean(feat_imp_byfold, axis=0)
+    feat_imp_byfam_std[i,:] =np.std(feat_imp_byfold, axis=0)
     #     plt.plot(CV_rfc.best_estimator_.feature_importances_, label="| Fold:" +str(fold))
     # plt.legend()
     # plt.title("Familia: "+familia)
@@ -106,6 +118,39 @@ for i, familia in enumerate(familias):
 
 print(results)
 
+for i, fam in enumerate(familias):
+    plt.figure(figsize=[20, 10])
+    plt.title("Feature importance in mean and std in "+fam)
+    plt.errorbar(x=range(0,10000), y=feat_imp_byfam[i,:], yerr=feat_imp_byfam_std[i,:], fmt='o', color='black',
+             ecolor='lightgray',  alpha=0.3, label=fam)
+    plt.show()
+
+
+# JUST A SAMPLE
+familia="carbapenems"
+for ab in familias[familia]:
+    plt.figure(figsize=[20, 10])
+    plt.title("Resistant and sensible sample for "+ab)
+    plt.plot(feat_imp_byfam[3, :],marker='o', color="black", alpha=0.2, label="W primal space MEAN of "+familia)
+    pos_sample = np.vstack(hgm_data['maldi'].loc[hgm_data['binary_ab'][ab][hgm_data['binary_ab'][ab]==1].sample(1).index]).ravel()
+    neg_sample = np.vstack(hgm_data['maldi'].loc[hgm_data['binary_ab'][ab][hgm_data['binary_ab'][ab]==0].sample(1).index]).ravel()
+    plt.plot(pos_sample, color='green', label=ab+": Resistent sample")
+    plt.plot(neg_sample, color='orange', label=ab+": Sensible sample")
+    plt.legend()
+    plt.show()
+
+# MEAN OF THE POS AND NEG SAMPLE
+
+for ab in familias[familia]:
+    plt.figure(figsize=[20, 10])
+    plt.title("Resistant and sensible mean for "+ab)
+    plt.plot(feat_imp_byfam[3, :],marker='o', color="black", alpha=0.2, label="W primal space MEAN of "+familia)
+    pos_sample = np.mean(np.vstack(hgm_data['maldi'].loc[hgm_data['binary_ab'][ab][hgm_data['binary_ab'][ab]==1].index]), axis=0)
+    neg_sample = np.mean(np.vstack(hgm_data['maldi'].loc[hgm_data['binary_ab'][ab][hgm_data['binary_ab'][ab]==0].index]), axis=0)
+    plt.plot(pos_sample, color='green', label=ab+": Resistent MEAN")
+    plt.plot(neg_sample, color='orange', label=ab+": Sensible MEAN")
+    plt.legend()
+    plt.show()
 
 
 

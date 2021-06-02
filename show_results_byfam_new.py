@@ -34,7 +34,7 @@ for fold in range(10):
     if ryc: hospital="RyC"
     elif hgm: hospital="HGM"
     elif both: hospital="Both"
-    modelo_a_cargar = "./Results/mediana_10fold_rbf/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
+    modelo_a_cargar = "./Results/TrainHGM_predictRYC/linear/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
 
     if ryc:
         familias = {
@@ -90,7 +90,7 @@ for fold in range(10):
         familias = familias_hgm
         with open("./data/ryc_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
             ryc_data = pickle.load(pkl)
-        with open("./data/RYC_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
+        with open("./data/RyC_5STRATIFIEDfolds_both_"+familia+".pkl", 'rb') as pkl:
             ryc_folds = pickle.load(pkl)
         with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
             hgm_data = pickle.load(pkl)
@@ -152,7 +152,7 @@ for fold in range(10):
     k_min = np.argmin(Ks)
 
 
-    W_byfold[fold, :] = W_2norm/5
+    W_byfold[fold, :] = W_2norm/3
 
     # TODO: Dibujar sigma del rbf
     # print("Sigma values")
@@ -185,43 +185,43 @@ for fold in range(10):
     # # TODO: Dibujar W primal space
     
 
-    f, axs = plt.subplots(1,5, figsize=(16,9))
-    f.suptitle('2norm of W_d primal '+familia)
+    # f, axs = plt.subplots(1,5, figsize=(16,9))
+    # f.suptitle('2norm of W_d primal '+familia)
 
-    X=np.vstack((np.vstack(ryc_x.loc[ryc_folds["train"][0]].values), np.vstack(ryc_x.loc[ryc_folds["val"][0]].values)))
-    Wprimal = X.T@results["model_fold0"].q_dist.W[0]['mean']
-    W2norm_d = np.linalg.norm(Wprimal, axis=1)
-    ax = axs[0]
-    ax.set_title("Init 0")
-    ax.stem(W2norm_d)
+    # X=np.vstack((np.vstack(data_x.loc[folds["train"][0]].values), np.vstack(data_x.loc[folds["val"][0]].values)))
+    # Wprimal = X.T@results["model_fold0"].q_dist.W[0]['mean']
+    # W2norm_d = np.linalg.norm(Wprimal, axis=1)
+    # ax = axs[0]
+    # ax.set_title("Init 0")
+    # ax.stem(W2norm_d)
 
-    X=np.vstack((np.vstack(ryc_x.loc[ryc_folds["train"][1]].values), np.vstack(ryc_x.loc[ryc_folds["val"][1]].values)))
-    Wprimal = X.T@results["model_fold1"].q_dist.W[0]['mean']
-    W2norm_d = np.linalg.norm(Wprimal, axis=1)
-    ax = axs[1]
-    ax.set_title("Init 1")
-    ax.stem(W2norm_d)
+    # X=np.vstack((np.vstack(data_x.loc[folds["train"][1]].values), np.vstack(data_x.loc[folds["val"][1]].values)))
+    # Wprimal = X.T@results["model_fold1"].q_dist.W[0]['mean']
+    # W2norm_d = np.linalg.norm(Wprimal, axis=1)
+    # ax = axs[1]
+    # ax.set_title("Init 1")
+    # ax.stem(W2norm_d)
 
-    X=np.vstack((np.vstack(ryc_x.loc[ryc_folds["train"][2]].values), np.vstack(ryc_x.loc[ryc_folds["val"][2]].values)))
-    Wprimal = X.T@results["model_fold2"].q_dist.W[0]['mean']
-    W2norm_d = np.linalg.norm(Wprimal, axis=1)
-    ax = axs[2]
-    ax.set_title("Init 2")
-    ax.stem(W2norm_d)
+    # X=np.vstack((np.vstack(data_x.loc[folds["train"][2]].values), np.vstack(data_x.loc[folds["val"][2]].values)))
+    # Wprimal = X.T@results["model_fold2"].q_dist.W[0]['mean']
+    # W2norm_d = np.linalg.norm(Wprimal, axis=1)
+    # ax = axs[2]
+    # ax.set_title("Init 2")
+    # ax.stem(W2norm_d)
 
-    X=np.vstack((np.vstack(ryc_x.loc[ryc_folds["train"][3]].values), np.vstack(ryc_x.loc[ryc_folds["val"][3]].values)))
-    Wprimal = X.T@results["model_fold3"].q_dist.W[0]['mean']
-    W2norm_d = np.linalg.norm(Wprimal, axis=1)
-    ax = axs[3]
-    ax.set_title("Init 3")
-    ax.stem(W2norm_d)
+    # X=np.vstack((np.vstack(data_x.loc[folds["train"][3]].values), np.vstack(data_x.loc[folds["val"][3]].values)))
+    # Wprimal = X.T@results["model_fold3"].q_dist.W[0]['mean']
+    # W2norm_d = np.linalg.norm(Wprimal, axis=1)
+    # ax = axs[3]
+    # ax.set_title("Init 3")
+    # ax.stem(W2norm_d)
 
-    X=np.vstack((np.vstack(ryc_x.loc[ryc_folds["train"][4]].values), np.vstack(ryc_x.loc[ryc_folds["val"][4]].values)))
-    Wprimal = X.T@results["model_fold4"].q_dist.W[0]['mean']
-    W2norm_d = np.linalg.norm(Wprimal, axis=1)
-    ax = axs[4]
-    ax.set_title("Init 4")
-    ax.stem(W2norm_d)
+    # X=np.vstack((np.vstack(data_x.loc[folds["train"][4]].values), np.vstack(data_x.loc[folds["val"][4]].values)))
+    # Wprimal = X.T@results["model_fold4"].q_dist.W[0]['mean']
+    # W2norm_d = np.linalg.norm(Wprimal, axis=1)
+    # ax = axs[4]
+    # ax.set_title("Init 4")
+    # ax.stem(W2norm_d)
 
 
     # # TODO: Dibujar W*ARD
@@ -305,125 +305,173 @@ print(np.std(np.vstack(resultados), axis=0))
 
 
 # TODO: Sacar vistas comunes
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-k_len = [len(models_sel[f].q_dist.alpha[2]['b']) for f in range(10)]
-k_ords = np.zeros((10, np.max(k_len)))
-if hgm: latent_mean = np.zeros((10, 3, np.max(k_len)))
-else: latent_mean = np.zeros((10, 4, np.max(k_len)))
-for f in range(10):
-    ord_k = np.argsort(models_sel[f].q_dist.alpha[2]['a']/models_sel[f].q_dist.alpha[2]['b'])
-    k_ords[f, :len(ord_k)] = ord_k
-    k_len.append(len(ord_k))
-    plt.figure(figsize=[20,10])
-    ax = plt.gca()
-    plt.title("Latent space distribution by views  for fold "+str(f))
-    if hgm: matrix_views = np.zeros((3,models_sel[f].q_dist.W[0]['mean'].shape[1]))
-    else: matrix_views = np.zeros((4,models_sel[f].q_dist.W[0]['mean'].shape[1]))
-    matrix_views[0, :]=np.mean(np.abs(models_sel[f].q_dist.W[0]['mean']), axis=0)[ord_k]
-    matrix_views[1, :]=np.mean(np.abs(models_sel[f].q_dist.W[1]['mean']), axis=0)[ord_k] 
-    matrix_views[2, :]=np.mean(np.abs(models_sel[f].q_dist.W[2]['mean']), axis=0)[ord_k]
-    if not hgm:  matrix_views[3, :]=np.mean(np.abs(models_sel[f].q_dist.W[3]['mean']), axis=0) 
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+# k_len = [len(models_sel[f].q_dist.alpha[2]['b']) for f in range(10)]
+# k_ords = np.zeros((10, np.max(k_len)))
+# if hgm: latent_mean = np.zeros((10, 3, np.max(k_len)))
+# else: latent_mean = np.zeros((10, 4, np.max(k_len)))
+# for f in range(10):
+#     ord_k = np.argsort(models_sel[f].q_dist.alpha[2]['a']/models_sel[f].q_dist.alpha[2]['b'])
+#     k_ords[f, :len(ord_k)] = ord_k
+#     k_len.append(len(ord_k))
+#     plt.figure(figsize=[20,10])
+#     ax = plt.gca()
+#     plt.title("Latent space distribution by views  for fold "+str(f))
+#     if hgm: matrix_views = np.zeros((3,models_sel[f].q_dist.W[0]['mean'].shape[1]))
+#     else: matrix_views = np.zeros((4,models_sel[f].q_dist.W[0]['mean'].shape[1]))
+#     matrix_views[0, :]=np.mean(np.abs(models_sel[f].q_dist.W[0]['mean']), axis=0)[ord_k]
+#     matrix_views[1, :]=np.mean(np.abs(models_sel[f].q_dist.W[1]['mean']), axis=0)[ord_k] 
+#     matrix_views[2, :]=np.mean(np.abs(models_sel[f].q_dist.W[2]['mean']), axis=0)[ord_k]
+#     if not hgm:  matrix_views[3, :]=np.mean(np.abs(models_sel[f].q_dist.W[3]['mean']), axis=0) 
 
-    latent_mean[f, :, :matrix_views.shape[1]] = matrix_views
+#     latent_mean[f, :, :matrix_views.shape[1]] = matrix_views
 
-    plt.xlabel("K features latent space")
-    if hgm: plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
-    else: plt.yticks(np.arange(4), ["Maldi", "Fenotype", "Genotype", "Antibiotic"])
-    plt.xticks(range(0, len(ord_k)), ord_k.tolist())
-    im = ax.imshow(matrix_views, cmap="binary")
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    plt.colorbar(im, cax=cax)
-    plt.show()
+#     plt.xlabel("K features latent space")
+#     if hgm: plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
+#     else: plt.yticks(np.arange(4), ["Maldi", "Fenotype", "Genotype", "Antibiotic"])
+#     plt.xticks(range(0, len(ord_k)), ord_k.tolist())
+#     im = ax.imshow(matrix_views, cmap="binary")
+#     divider = make_axes_locatable(ax)
+#     cax = divider.append_axes("right", size="5%", pad=0.05)
+#     plt.colorbar(im, cax=cax)
+#     plt.show()
 
-plt.figure(figsize=[20,10])
-plt.title("Latent MEAN space distribution by views")
-ax = plt.gca()
-if hgm: plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
-else: plt.yticks(np.arange(4), ["Maldi", "Fenotype", "Genotype", "Antibiotic"])
-im = ax.imshow(np.mean(latent_mean, axis=0), cmap="binary")
-divider = make_axes_locatable(ax)
-cax = divider.append_axes("right", size="5%", pad=0.05)
-plt.colorbar(im, cax=cax)
-plt.show()
+# plt.figure(figsize=[20,10])
+# plt.title("Latent MEAN space distribution by views")
+# ax = plt.gca()
+# if hgm: plt.yticks(np.arange(3), ["Maldi", "Fenotype", "Antibiotic"])
+# else: plt.yticks(np.arange(4), ["Maldi", "Fenotype", "Genotype", "Antibiotic"])
+# im = ax.imshow(np.mean(latent_mean, axis=0), cmap="binary")
+# divider = make_axes_locatable(ax)
+# cax = divider.append_axes("right", size="5%", pad=0.05)
+# plt.colorbar(im, cax=cax)
+# plt.show()
 
 # # TODO: Sacar la W por familia SOLO SI EL KERNEL ES LINEAL
-# plt.figure()
-# plt.title(familia+": W primal space")
-# for i in range(10):
-#     label = "Fold "+str(i)
-#     plt.plot(W_byfold[i, :], label=label)
-# plt.legend()
-# plt.show()
-# plt.figure()
-# plt.title(familia+": Random sample with W primal space over it")
-# plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
-# plt.plot(np.mean(W_byfold, axis=0), label="W primal space mean", alpha=0.2)
-# plt.legend()
-# plt.show()
-# W_byfam = np.zeros((7, 10000))
-# for j, familia in enumerate(familias):
-#     with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
-#         data = pickle.load(pkl)
-#     with open("./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
-#         folds = pickle.load(pkl)
-#     data_x = data['maldi']
-#     W_byfold = np.zeros((10, 10000))
+plt.figure()
+plt.title(familia+": W primal space")
+for i in range(10):
+    label = "Fold "+str(i)
+    plt.plot(W_byfold[i, :], label=label)
+plt.legend()
+plt.show()
+plt.figure()
+plt.title(familia+": Random sample with W primal space over it")
+plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
+plt.plot(np.mean(W_byfold, axis=0), label="W primal space mean", alpha=0.2)
+plt.legend()
+plt.show()
+W_byfam_mean = np.zeros((7, 10000))
+W_byfam_std = np.zeros((7, 10000))
+for j, familia in enumerate(familias):
+    with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
+        data = pickle.load(pkl)
+    with open("./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
+        folds = pickle.load(pkl)
+    data_x = data['maldi']
+    W_byfold = np.zeros((10, 10000))
 
-#     for fold in range(10):
-#         modelo_a_cargar = "./Results/mediana_10fold_rbf/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
-#         with open(modelo_a_cargar, 'rb') as pkl:
-#             results = pickle.load(pkl)
-#         W_2norm=0
-#         for i in range(5):
-#             model="model_fold"+str(i)
-#             X=np.vstack((np.vstack(data_x.loc[folds["train"][fold]].values), np.vstack(data_x.loc[folds["val"][fold]].values)))
-#             W_2norm += np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
+    for fold in range(10):
+        modelo_a_cargar = "./Results/mediana_10fold_linear/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
+        with open(modelo_a_cargar, 'rb') as pkl:
+            results = pickle.load(pkl)
+        W_2norm=0
+        for i in range(3):
+            model="model_fold"+str(i)
+            X=np.vstack((np.vstack(data_x.loc[folds["train"][fold]].values), np.vstack(data_x.loc[folds["val"][fold]].values)))
+            W_2norm += np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
 
-#         W_byfold[fold, :] = W_2norm/5
+        W_byfold[fold, :] = W_2norm/3
 
-#     W_byfam[j, :] = np.mean(W_byfold, axis=0)
+    W_byfam_mean[j, :] = np.mean(W_byfold, axis=0)
+    W_byfam_std[j, :] = np.std(W_byfold, axis=0)
 
 # plt.figure(figsize=[20, 10])
 # plt.title("W primal space by family")
 # for j, familia in enumerate(familias):
-#     plt.plot(W_byfam[j, :], label=familia)
+#     plt.plot(W_byfam_mean[j, :], label=familia)
 # plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
 # plt.legend()
 # plt.show()
 
-
-# TODO: Proyectar train y test sobre el espacio latente
-fold_proj = np.argmin(np.abs(resultados-mean_result), axis=0)
-
-j=0
-for fold, ab in zip(fold_proj, familias[familia]):
-
-    # Train samples
-    y_tr = data_y[familias[familia]].loc[folds["train"][fold]]
-    y_tr = y_tr.to_numpy().astype(float) 
-    
-    from sklearn.decomposition import PCA
-    from sklearn.manifold import TSNE
-    pca = TSNE(n_components=3)
-    X = models_sel[f].q_dist.Z['mean'][:, k_ords[fold, :].astype(int)][:y_tr.shape[0],:]
-    proyection = pca.fit_transform(X)
-    # proyection = models_sel[f].q_dist.Z['mean'][:, k_ords[fold, :3].astype(int)][:y_tr.shape[0],:]
-
-    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
-    plt.title("Data TRAIN projection in Z using model "+str(fold)+" over antibiotic: "+ab)
-    ax.scatter(proyection[:, 0], proyection[:, 1], proyection[:, 2], c=y_tr[:, j])
-
-    # Test samples
-    y_tst = data_y[familias[familia]].loc[folds["val"][fold]]
-    y_tst = y_tst.to_numpy().astype(float)
-
-    proyection = models_sel[f].q_dist.Z['mean'][:, k_ords[fold, :3].astype(int)][-y_tst.shape[0]:,:]
-
-    fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
-    plt.title("Data TEST projection in Z using model "+str(fold)+" over antibiotic: "+ab)
-    ax.scatter(proyection[:, 0], proyection[:, 1], proyection[:, 2], c=y_tst[:, j])
+for i, fam in enumerate(familias):
+    plt.figure(figsize=[20, 10])
+    plt.title("W primal space in mean and std in "+fam)
+    plt.errorbar(x=range(0,10000), y=W_byfam_mean[i,:], yerr=W_byfam_std[i,:], fmt='o', color='black',
+             ecolor='lightgray',  alpha=0.3, label=fam)
     plt.show()
-    j+=1
+
+
+
+
+
+
+#TODO: analisis exhaustivo de carbapenems:
+familia="carbapenems"
+plt.figure(figsize=[20, 10])
+plt.title("W primal space mean and std of "+familia)
+plt.errorbar(x=range(0,10000), y=W_byfam_mean[3, :], yerr=W_byfam_std[j, :], fmt='o', color='black',
+             ecolor='lightgray',  alpha=0.3, label=familia)
+plt.legend()
+plt.show()
+
+# JUST A SAMPLE
+for ab in familias[familia]:
+    plt.figure(figsize=[20, 10])
+    plt.title("Resistant and sensible sample for "+ab)
+    plt.plot(W_byfam_mean[3, :],marker='o', color="black", alpha=0.2,  label="W primal space MEAN of "+familia)
+    pos_sample = np.vstack(data_x.loc[data_y[ab][data_y[ab]==1].sample(1).index]).ravel()
+    neg_sample = np.vstack(data_x.loc[data_y[ab][data_y[ab]==0].sample(1).index]).ravel()
+    plt.plot(pos_sample, color='green', label=ab+": Resistent sample")
+    plt.plot(neg_sample, color='orange', label=ab+": Sensible sample")
+    plt.legend()
+    plt.show()
+
+# MEAN OF THE POS AND NEG SAMPLE
+
+for ab in familias[familia]:
+    plt.figure(figsize=[20, 10])
+    plt.title("Resistant and sensible mean for "+ab)
+    plt.plot(W_byfam_mean[3, :],marker='o', color="black", alpha=0.2, label="W primal space MEAN of "+familia)
+    pos_sample = np.mean(np.vstack(data_x.loc[data_y[ab][data_y[ab]==1].index]), axis=0)
+    neg_sample = np.mean(np.vstack(data_x.loc[data_y[ab][data_y[ab]==0].index]), axis=0)
+    plt.plot(pos_sample, color='green', label=ab+": Resistent MEAN")
+    plt.plot(neg_sample, color='orange', label=ab+": Sensible MEAN")
+    plt.legend()
+    plt.show()
+        
+
+# # TODO: Proyectar train y test sobre el espacio latente
+# fold_proj = np.argmin(np.abs(resultados-mean_result), axis=0)
+# familia="penicilinas"
+# j=0
+# for fold, ab in zip(fold_proj, familias[familia]):
+
+#     # Train samples
+#     y_tr = data_y[familias[familia]].loc[folds["train"][fold]]
+#     y_tr = y_tr.to_numpy().astype(float) 
+    
+#     from sklearn.decomposition import PCA
+#     from sklearn.manifold import TSNE
+#     pca = TSNE(n_components=3, perplexity=5)
+#     X = models_sel[f].q_dist.Z['mean'][:, k_ords[fold, :].astype(int)][:y_tr.shape[0],:]
+#     proyection = pca.fit_transform(X)
+#     # proyection = models_sel[f].q_dist.Z['mean'][:, k_ords[fold, :3].astype(int)][:y_tr.shape[0],:]
+
+#     fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+#     plt.title("Data TRAIN projection in Z using model "+str(fold)+" over antibiotic: "+ab)
+#     ax.scatter(proyection[:, 0], proyection[:, 1], proyection[:, 2], c=y_tr[:, j])
+
+#     # Test samples
+#     y_tst = data_y[familias[familia]].loc[folds["val"][fold]]
+#     y_tst = y_tst.to_numpy().astype(float)
+
+#     proyection = models_sel[f].q_dist.Z['mean'][:, k_ords[fold, :3].astype(int)][-y_tst.shape[0]:,:]
+
+#     fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+#     plt.title("Data TEST projection in Z using model "+str(fold)+" over antibiotic: "+ab)
+#     ax.scatter(proyection[:, 0], proyection[:, 1], proyection[:, 2], c=y_tst[:, j])
+#     plt.show()
+#     j+=1
 
     
