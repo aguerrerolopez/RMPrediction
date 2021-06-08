@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+import topf
 import json
 from numpy.testing._private.utils import KnownFailureException
 import telegram
@@ -11,6 +12,12 @@ from sklearn.metrics import roc_auc_score as auc
 import matplotlib.pyplot as plt
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.svm import SVC
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process import GaussianProcessClassifier
+import sys
+sys.path.append('../maldi_PIKE/maldi-learn/maldi_learn')
+from kernels import DiffusionKernel
+
 
 def notify_ending(message):
     with open('./keys_file.json', 'r') as keys_file:
@@ -38,6 +45,13 @@ hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-1, "m
 data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
 with open(data_path, 'rb') as pkl:
         hgm_data = pickle.load(pkl)
+
+
+for asig in range(hgm_data['maldi'].shape[0]):
+    transformer= topf.PersistenceTransformer()
+    print("Preproccessing TOPF "+str(asig)+"/"+str(hgm_data['maldi'].shape[0]), end='\r')
+    topf_signal = np.concatenate((np.arange(2000,12000).reshape(-1, 1), hgm_data['maldi'][asig].reshape(-1,1)), axis=1)
+    hgm_data['maldi'][asig] = transformer.fit_transform(topf_signal)[:, 1]
 
 random_states = [0, 10, 20, 30, 40]
 results = np.zeros((10,15))
@@ -72,29 +86,33 @@ for i, familia in enumerate(familias):
 
         y_tr = hgm_data['binary_ab'][familias[familia]].loc[hgm_folds["train"][fold]].values
         y_tst = hgm_data['binary_ab'][familias[familia]].loc[hgm_folds["val"][fold]].values
-        
-        # if y_tst.shape[1]==1:
-        #     y_tr = y_tr.ravel()
-        #     clf=SVC(probability=1, kernel="linear")
-        #     param_grid = {'C': [0.01, 0.1 , 1, 10]}
-        # else:
-        #     clf = MultiOutputClassifier(SVC(probability=True, kernel="linear"))
-        #     param_grid = {'estimator__C': [0.01, 0.1 , 1, 10]}     
-        #     # knn = KNeighborsClassifier(n_jobs=-1)
-        #     # param_grid = {'n_neighbors': range(1,20)}
-        #     # rfc=RFC(random_state=42)
-        #     # param_grid = {'n_estimators': [100],
-        #                     # 'max_features': ['auto', 'sqrt', 'log2'],
-        #                     # 'criterion' :['gini']}
-        clf = RFC(n_jobs=-1)
-        param_grid = {'n_estimators': [100],
-                            'max_features': ['auto', 'sqrt', 'log2'],
-                            'criterion' :['gini']}
 
-        CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
+        # kernel = DiffusionKernel(sigma=400)
+        kernel=RBF()
+        if y_tst.shape[1]==1:
+            y_tr = y_tr.ravel()
+            # clf=SVC(probability=1, kernel="linear")
+            CV_rfc = GaussianProcessClassifier(kernel=kernel, n_jobs=-1)
+            # param_grid = {'C': [0.01, 0.1 , 1, 10]}
+        else:
+            CV_rfc = MultiOutputClassifier(GaussianProcessClassifier(kernel=kernel, n_jobs=-1))
+            # clf = MultiOutputClassifier(SVC(probability=True, kernel="linear"))
+            # param_grid = {'estimator__C': [0.01, 0.1 , 1, 10]}     
+            # knn = KNeighborsClassifier(n_jobs=-1)
+            # param_grid = {'n_neighbors': range(1,20)}
+            # rfc=RFC(random_state=42)
+            # param_grid = {'n_estimators': [100],
+                            # 'max_features': ['auto', 'sqrt', 'log2'],
+                            # 'criterion' :['gini']}
+        # clf = RFC(n_jobs=-1)
+        # param_grid = {'n_estimators': [100],
+        #                     'max_features': ['auto', 'sqrt', 'log2'],
+        #                     'criterion' :['gini']}
+
+        # CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
         CV_rfc.fit(x_tr, y_tr)
 
-        print(CV_rfc.best_params_)
+        # print(CV_rfc.best_params_)
         y_pred_clf = CV_rfc.predict_proba(x_tst)
         y_pred = np.zeros(y_tst.shape)
         if y_tst.shape[1]==1:
@@ -107,10 +125,10 @@ for i, familia in enumerate(familias):
                     print(y_pred_clf[c][:, 1])
                 results[fold, c+delay] = auc(y_tst[:, c], y_pred_clf[c][:, 1])
 
-        feat_imp_byfold[fold, :] = CV_rfc.best_estimator_.feature_importances_.ravel()
+        # feat_imp_byfold[fold, :] = CV_rfc.best_estimator_.feature_importances_.ravel()
 
-    feat_imp_byfam[i, :] = np.mean(feat_imp_byfold, axis=0)
-    feat_imp_byfam_std[i,:] =np.std(feat_imp_byfold, axis=0)
+    # feat_imp_byfam[i, :] = np.mean(feat_imp_byfold, axis=0)
+    # feat_imp_byfam_std[i,:] =np.std(feat_imp_byfold, axis=0)
     #     plt.plot(CV_rfc.best_estimator_.feature_importances_, label="| Fold:" +str(fold))
     # plt.legend()
     # plt.title("Familia: "+familia)

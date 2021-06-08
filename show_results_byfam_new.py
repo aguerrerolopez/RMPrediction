@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize
 import numpy as np
 from sklearn.metrics import roc_curve, auc, roc_auc_score, r2_score, mean_squared_error
-
+import topf
 
 def sigmoid(x):
   return np.exp(-np.log(1 + np.exp(-x)))
@@ -25,8 +25,18 @@ both = False
 no_ertapenem = False
 resultados = []
 
-familia="penicilinas"
+with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
+            data = pickle.load(pkl)
+
+for asig in range(data['maldi'].shape[0]):
+    transformer= topf.PersistenceTransformer()
+    print("Preproccessing TOPF "+str(asig)+"/"+str(data['maldi'].shape[0]), end='\r')
+    topf_signal = np.concatenate((np.arange(2000,12000).reshape(-1, 1), data['maldi'][asig].reshape(-1,1)), axis=1)
+    data['maldi'][asig] = transformer.fit_transform(topf_signal)[:, 1]
+
+familia="carbapenems"
 W_byfold = np.zeros((10, 10000))
+W_byfold_std = np.zeros((10, 10000))
 models_sel = [None]*10
 print("############################## "+familia+" ############################## ")
 for fold in range(10):
@@ -34,7 +44,7 @@ for fold in range(10):
     if ryc: hospital="RyC"
     elif hgm: hospital="HGM"
     elif both: hospital="Both"
-    modelo_a_cargar = "./Results/TrainHGM_predictRYC/linear/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
+    modelo_a_cargar = "./Results/topf_linear/"+hospital+"_10fold"+str(fold)+"_TOPF_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
 
     if ryc:
         familias = {
@@ -63,8 +73,6 @@ for fold in range(10):
                     "fluoro":['CIPROFLOXACINO'],
                     "otros":['COLISTINA']
                     }
-        with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
-            data = pickle.load(pkl)
         with open("./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
             folds = pickle.load(pkl)
 
@@ -128,6 +136,7 @@ for fold in range(10):
     elbo=[]
     Ks = [1e5]
     sigma = []
+    aux_w = np.zeros((3, 10000))
     for i in range(3):
         model = "model_fold" + str(c)
 
@@ -146,13 +155,13 @@ for fold in range(10):
         
         # lf_imp.append(np.argwhere(np.mean(np.abs(results[model].q_dist.W[2]["mean"]), axis=0) > 0.5))
         X=np.vstack((np.vstack(data_x.loc[folds["train"][fold]].values), np.vstack(data_x.loc[folds["val"][fold]].values)))
-        W_2norm += np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
+        aux_w[i, :] = np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
         c += 1
     elbo_max = np.argmax(elbo)
     k_min = np.argmin(Ks)
 
-
-    W_byfold[fold, :] = W_2norm/3
+    W_byfold[fold, :] = np.mean(aux_w, axis=0)
+    W_byfold_std[fold, :]=np.std(aux_w, axis=0)
 
     # TODO: Dibujar sigma del rbf
     # print("Sigma values")
@@ -355,62 +364,10 @@ for i in range(10):
     plt.plot(W_byfold[i, :], label=label)
 plt.legend()
 plt.show()
-plt.figure()
-plt.title(familia+": Random sample with W primal space over it")
-plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
-plt.plot(np.mean(W_byfold, axis=0), label="W primal space mean", alpha=0.2)
-plt.legend()
-plt.show()
-W_byfam_mean = np.zeros((7, 10000))
-W_byfam_std = np.zeros((7, 10000))
-for j, familia in enumerate(familias):
-    with open("./data/hgm_data_mediansample_only2-12_TIC.pkl", 'rb') as pkl:
-        data = pickle.load(pkl)
-    with open("./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
-        folds = pickle.load(pkl)
-    data_x = data['maldi']
-    W_byfold = np.zeros((10, 10000))
 
-    for fold in range(10):
-        modelo_a_cargar = "./Results/mediana_10fold_linear/"+hospital+"_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
-        with open(modelo_a_cargar, 'rb') as pkl:
-            results = pickle.load(pkl)
-        W_2norm=0
-        for i in range(3):
-            model="model_fold"+str(i)
-            X=np.vstack((np.vstack(data_x.loc[folds["train"][fold]].values), np.vstack(data_x.loc[folds["val"][fold]].values)))
-            W_2norm += np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
-
-        W_byfold[fold, :] = W_2norm/3
-
-    W_byfam_mean[j, :] = np.mean(W_byfold, axis=0)
-    W_byfam_std[j, :] = np.std(W_byfold, axis=0)
-
-# plt.figure(figsize=[20, 10])
-# plt.title("W primal space by family")
-# for j, familia in enumerate(familias):
-#     plt.plot(W_byfam_mean[j, :], label=familia)
-# plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
-# plt.legend()
-# plt.show()
-
-for i, fam in enumerate(familias):
-    plt.figure(figsize=[20, 10])
-    plt.title("W primal space in mean and std in "+fam)
-    plt.errorbar(x=range(0,10000), y=W_byfam_mean[i,:], yerr=W_byfam_std[i,:], fmt='o', color='black',
-             ecolor='lightgray',  alpha=0.3, label=fam)
-    plt.show()
-
-
-
-
-
-
-#TODO: analisis exhaustivo de carbapenems:
-familia="carbapenems"
 plt.figure(figsize=[20, 10])
 plt.title("W primal space mean and std of "+familia)
-plt.errorbar(x=range(0,10000), y=W_byfam_mean[3, :], yerr=W_byfam_std[j, :], fmt='o', color='black',
+plt.errorbar(x=range(0,10000), y=np.mean(W_byfold, axis=0), yerr=np.std(W_byfold, axis=0), fmt='o', color='black',
              ecolor='lightgray',  alpha=0.3, label=familia)
 plt.legend()
 plt.show()
@@ -419,7 +376,7 @@ plt.show()
 for ab in familias[familia]:
     plt.figure(figsize=[20, 10])
     plt.title("Resistant and sensible sample for "+ab)
-    plt.plot(W_byfam_mean[3, :],marker='o', color="black", alpha=0.2,  label="W primal space MEAN of "+familia)
+    plt.plot(np.mean(W_byfold, axis=0),marker='o', color="black", alpha=0.2,  label="W primal space MEAN of "+familia)
     pos_sample = np.vstack(data_x.loc[data_y[ab][data_y[ab]==1].sample(1).index]).ravel()
     neg_sample = np.vstack(data_x.loc[data_y[ab][data_y[ab]==0].sample(1).index]).ravel()
     plt.plot(pos_sample, color='green', label=ab+": Resistent sample")
@@ -432,13 +389,98 @@ for ab in familias[familia]:
 for ab in familias[familia]:
     plt.figure(figsize=[20, 10])
     plt.title("Resistant and sensible mean for "+ab)
-    plt.plot(W_byfam_mean[3, :],marker='o', color="black", alpha=0.2, label="W primal space MEAN of "+familia)
+    plt.plot(np.mean(W_byfold, axis=0),marker='o', color="black", alpha=0.1, label="W primal space MEAN of "+familia)
     pos_sample = np.mean(np.vstack(data_x.loc[data_y[ab][data_y[ab]==1].index]), axis=0)
     neg_sample = np.mean(np.vstack(data_x.loc[data_y[ab][data_y[ab]==0].index]), axis=0)
     plt.plot(pos_sample, color='green', label=ab+": Resistent MEAN")
     plt.plot(neg_sample, color='orange', label=ab+": Sensible MEAN")
     plt.legend()
     plt.show()
+        
+
+
+
+# plt.figure()
+# plt.title(familia+": Random sample with W primal space over it")
+# plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
+# plt.plot(np.mean(W_byfold, axis=0), label="W primal space mean", alpha=0.2)
+# plt.legend()
+# plt.show()
+
+
+
+# W_byfam_mean = np.zeros((7, 10000))
+# W_byfam_std = np.zeros((7, 10000))
+# for j, familia in enumerate(familias):
+#     with open("./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl", 'rb') as pkl:
+#         hgm_folds = pickle.load(pkl)
+#     data_x = data['maldi']
+#     W_byfold = np.zeros((10, 10000))
+
+#     for fold in range(10):
+#         modelo_a_cargar = "./Results/topf_linear/"+hospital+"_10fold"+str(fold)+"_TOPF_muestrascompensadas_2-12maldi_"+familia+"_prun0.1.pkl"
+#         with open(modelo_a_cargar, 'rb') as pkl:
+#             results = pickle.load(pkl)
+#         W_2norm=0
+#         X=np.vstack((np.vstack(data_x.loc[folds["train"][fold]].values), np.vstack(data_x.loc[folds["val"][fold]].values)))
+
+#         for i in range(3):
+#             model="model_fold"+str(i)
+#             W_2norm += np.linalg.norm(X.T@results[model].q_dist.W[0]['mean'], axis=1)
+
+#         W_byfold[fold, :] = W_2norm/3
+
+#     W_byfam_mean[j, :] = np.mean(W_byfold, axis=0)
+#     W_byfam_std[j, :] = np.std(W_byfold, axis=0)
+
+# # plt.figure(figsize=[20, 10])
+# # plt.title("W primal space by family")
+# # for j, familia in enumerate(familias):
+# #     plt.plot(W_byfam_mean[j, :], label=familia)
+# # plt.plot(np.vstack(data_x.loc[folds["train"][fold]].sample(1).values).ravel(), label="A random sample")
+# # plt.legend()
+# # plt.show()
+
+# for i, fam in enumerate(familias):
+#     plt.figure(figsize=[20, 10])
+#     plt.title("W primal space in mean and std in "+fam)
+#     plt.errorbar(x=range(0,10000), y=W_byfam_mean[i,:], yerr=W_byfam_std[i,:], fmt='o', color='black',
+#              ecolor='lightgray',  alpha=0.3, label=fam)
+#     plt.show()
+
+# #TODO: analisis exhaustivo de carbapenems:
+# familia="carbapenems"
+# plt.figure(figsize=[20, 10])
+# plt.title("W primal space mean and std of "+familia)
+# plt.errorbar(x=range(0,10000), y=W_byfam_mean[3, :], yerr=W_byfam_std[j, :], fmt='o', color='black',
+#              ecolor='lightgray',  alpha=0.3, label=familia)
+# plt.legend()
+# plt.show()
+
+# # JUST A SAMPLE
+# for ab in familias[familia]:
+#     plt.figure(figsize=[20, 10])
+#     plt.title("Resistant and sensible sample for "+ab)
+#     plt.plot(W_byfam_mean[3, :],marker='o', color="black", alpha=0.2,  label="W primal space MEAN of "+familia)
+#     pos_sample = np.vstack(data_x.loc[data_y[ab][data_y[ab]==1].sample(1).index]).ravel()
+#     neg_sample = np.vstack(data_x.loc[data_y[ab][data_y[ab]==0].sample(1).index]).ravel()
+#     plt.plot(pos_sample, color='green', label=ab+": Resistent sample")
+#     plt.plot(neg_sample, color='orange', label=ab+": Sensible sample")
+#     plt.legend()
+#     plt.show()
+
+# # MEAN OF THE POS AND NEG SAMPLE
+
+# for ab in familias[familia]:
+#     plt.figure(figsize=[20, 10])
+#     plt.title("Resistant and sensible mean for "+ab)
+#     plt.plot(W_byfam_mean[3, :],marker='o', color="black", alpha=0.2, label="W primal space MEAN of "+familia)
+#     pos_sample = np.mean(np.vstack(data_x.loc[data_y[ab][data_y[ab]==1].index]), axis=0)
+#     neg_sample = np.mean(np.vstack(data_x.loc[data_y[ab][data_y[ab]==0].index]), axis=0)
+#     plt.plot(pos_sample, color='green', label=ab+": Resistent MEAN")
+#     plt.plot(neg_sample, color='orange', label=ab+": Sensible MEAN")
+#     plt.legend()
+#     plt.show()
         
 
 # # TODO: Proyectar train y test sobre el espacio latente
