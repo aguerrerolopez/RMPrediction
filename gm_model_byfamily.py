@@ -1,4 +1,5 @@
 import pickle
+import topf
 import sys
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -29,26 +30,33 @@ familias = { "penicilinas": ['AMOXI/CLAV ', 'PIP/TAZO'],
 
 full = True
 
+data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
+with open(data_path, 'rb') as pkl:
+    hgm_data = pickle.load(pkl)
+
+maldi = hgm_data['maldi']
+fen = hgm_data['fen']
+gen = hgm_data['gen']
+cmi = hgm_data['cmi']
+ab = hgm_data['binary_ab']
+
+for asig in range(maldi.shape[0]):
+    transformer= topf.PersistenceTransformer()
+    print("Preproccessing TOPF "+str(asig)+"/"+str(maldi.shape[0]), end='\r')
+    topf_signal = np.concatenate((np.arange(2000,12000).reshape(-1, 1), maldi[asig].reshape(-1,1)), axis=1)
+    maldi[asig] = transformer.fit_transform(topf_signal)[:, 1]
+
+
 hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-1, "max_it": int(1500)}}
 
 for fold in range(10):
 
     for familia in familias:
         print(familia)
-        data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
         folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensadas_"+familia+".pkl"
-        store_path = "Results/mediana_10fold_linear/HGM_10fold"+str(fold)+"_muestrascompensadas_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+        store_path = "Results/topf_linear/HGM_10fold"+str(fold)+"_TOPF_muestrascompensadas_2-12maldi_"+familia+"_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
         message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path + "\n Folds used: " + folds_path +\
                 "\n Storage name: "+store_path
-
-        with open(data_path, 'rb') as pkl:
-            hgm_data = pickle.load(pkl)
-
-        maldi = hgm_data['maldi']
-        fen = hgm_data['fen']
-        gen = hgm_data['gen']
-        cmi = hgm_data['cmi']
-        ab = hgm_data['binary_ab']
 
         results = {}
     
@@ -72,8 +80,6 @@ for fold in range(10):
                 notify_ending(message)
                 break
 
-
-
             # Concatenate the X fold of seen points and the unseen points
             x0 = np.vstack((x0_tr, x0_val)).astype(float)
             # Fenotype
@@ -82,8 +88,6 @@ for fold in range(10):
             # x2 = np.vstack((np.vstack(x2_tr.values), np.vstack(x2_val.values))).astype(float)
             # Both together in one multilabel
             # x_fengen = np.hstack((x1, x2))
-
-
             # Familias
             y0 = np.vstack((np.vstack(y_tr[familias[familia]].values)))
 

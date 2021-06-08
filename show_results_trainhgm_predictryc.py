@@ -19,7 +19,7 @@ def plot_W(W, title):
 
 resultados = []
 
-familia="otros"
+familia="carbapenems"
 
 fold=0
 
@@ -90,26 +90,41 @@ if familia=="carbapenems":
     for ab in familias[familia]:
         plt.figure(figsize=[20, 10])
         plt.title("Resistant and sensible sample for "+ab)
-        plt.plot(Wprimal_mean,marker='o', color="black", alpha=0.2, label="SVM coeficients of "+familia)
+        plt.plot(Wprimal_mean,marker='o', color="black", alpha=0.2, label="W matrix for "+familia)
         pos_sample = np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==1].sample(1).index]).ravel()
         neg_sample = np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==0].sample(1).index]).ravel()
-        plt.plot(pos_sample, color='green', label=ab+": Resistent sample")
-        plt.plot(neg_sample, color='orange', label=ab+": Sensible sample")
+        plt.plot(pos_sample, ':g',label=ab+": Resistent MEAN")
+        plt.plot(neg_sample, ':o', label=ab+": Sensible MEAN")
         plt.legend()
         plt.show()
 
     # MEAN OF THE POS AND NEG SAMPLE
 
     for ab in familias[familia]:
-        plt.figure(figsize=[20, 10])
-        plt.title("Resistant and sensible mean for "+ab)
-        plt.plot(Wprimal_mean,marker='o', color="black", alpha=0.2, label="SVM coeficients of  "+familia)
-        pos_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==1].index]), axis=0)
-        neg_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==0].index]), axis=0)
-        plt.plot(pos_sample, color='green', label=ab+": Resistent MEAN")
-        plt.plot(neg_sample, color='orange', label=ab+": Sensible MEAN")
-        plt.legend()
-        plt.show()
+        if ab=="ERTAPENEM.1":
+            plt.figure(figsize=[20, 10])
+            plt.title("Resistant and sensible mean for "+ab)
+            plt.plot(range(2000,12000), Wprimal_mean,marker='o', color="black", alpha=0.2, label="W matrix for "+familia)
+            pos_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==1].index]), axis=0)
+            neg_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==0].index]), axis=0)
+            plt.plot(range(2000,12000), pos_sample, 'g',label=ab+": Resistent MEAN")
+            plt.plot(range(2000,12000), neg_sample, ':r', label=ab+": Sensible MEAN")
+            plt.xlabel("m/z")
+            plt.ylabel("intensity TIC normalized")
+            plt.legend()
+            plt.show()
+
+            plt.figure(figsize=[20, 10])
+            plt.title("ZOOM IN: Resistant and sensible mean for "+ab)
+            plt.plot(range(5000,7000), Wprimal_mean[3000:5000],marker='o', color="black", alpha=0.2, label="W matrix for "+familia)
+            pos_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==1].index]), axis=0)
+            neg_sample = np.mean(np.vstack(ryc_data['maldi'].loc[ryc_data['binary_ab'][ab][ryc_data['binary_ab'][ab]==0].index]), axis=0)
+            plt.plot(range(5000,7000), pos_sample[3000:5000], 'g',label=ab+": Resistent MEAN")
+            plt.plot(range(5000,7000), neg_sample[3000:5000], ':r', label=ab+": Sensible MEAN")
+            plt.xlabel("m/z")
+            plt.ylabel("intensity TIC normalized")
+            plt.legend()
+            plt.show()
 
 # # TODO: Dibujar pesos ARD para cada fold
 # f, axs = plt.subplots(1,5, figsize=(16,9))
