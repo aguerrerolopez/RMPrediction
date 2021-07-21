@@ -96,50 +96,61 @@ familias = { "penicilinas": ['AMOXI/CLAV .1', 'PIP/TAZO.1'],
 # #           "aminos": ['GENTAMICINA.1', 'TOBRAMICINA.1'],
 # #           "fluoro":['CIPROFLOXACINO.1'],
 # #           "otros":['COLISTINA.1']}
-
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
-for fam in familias:
-    complete_samples = np.unique(ryc_full_data[~ryc_full_data[familias[fam]].isna().any(axis=1)].index)
-    missing_samples = np.unique(ryc_full_data[ryc_full_data[familias[fam]].isna().any(axis=1)].index)
-    fold_storage_name = "data/RYC_10STRATIFIEDfolds_nomissing_muestrascompensadas_"+fam+".pkl"
-    ryc_complete_y= ryc_full_data[familias[fam]].loc[complete_samples]
-    if ryc_complete_y.shape[1]>1:
-        mskf = MultilabelStratifiedKFold(n_splits=10, shuffle=True, random_state=0)
-    else: 
-        mskf = StratifiedKFold(n_splits=10, shuffle=True, random_state=0)
-    gm_folds = {"train": [], "val": []}
-    for tr_idx, tst_idx in mskf.split(complete_samples, ryc_complete_y):
-        train_samples = complete_samples[tr_idx]
-        test_samples = complete_samples[tst_idx]
-        for ab in familias[fam]:
-            # COMPROBAR SI ESTÁN DESCOMPENSADAS EN ENTRENAMIENTO
-            low_appear_value = int(ryc_complete_y[ab].loc[train_samples].value_counts().index[1])
-            n_repeats = abs(np.diff(ryc_complete_y[ab].loc[train_samples].value_counts()))
-            if int(n_repeats) > int(50):
-                low_appear_rep_idx = ryc_complete_y[ab].loc[train_samples][ryc_complete_y[ab].loc[train_samples]==low_appear_value].sample(n_repeats, replace=1).index
-                train_samples = np.concatenate([train_samples, low_appear_rep_idx])
-            
-            # COMPROBAR SI TENGO MUESTRAS DE LOS DOS TIPOS EN TEST
-            if ryc_complete_y[ab].loc[test_samples].value_counts().shape[0]<2:
-                print("NO STRATIFIED FOR AB: "+ab)
-                print(ryc_complete_y[ab].loc[test_samples].value_counts())
-                # Mirar cuale s el valor que no tenemos en test
-                no_samples_value = int(np.logical_not(ryc_complete_y[ab].loc[test_samples].value_counts().index[0]))
-                # Buscamos el valor entre los de training
-                new_test_sample = ryc_complete_y[ab].loc[train_samples][ryc_complete_y[ab].loc[train_samples]==no_samples_value].sample(1).index
-                # Lo metemos en test y lo eliminamos de train
-                test_samples = np.concatenate([test_samples, new_test_sample])
-                train_samples = train_samples[train_samples != new_test_sample[0]]
-                print("Ahora debería estar correcto "+ab)
-                print(ryc_complete_y[ab].loc[test_samples].value_counts())
 
-        # train_samples = np.concatenate([train_samples, missing_samples])   
-        gm_folds["train"].append(train_samples)
-        gm_folds["val"].append(test_samples)
-    
-    with open(fold_storage_name, 'wb') as f:
+mskf = MultilabelStratifiedKFold(n_splits=10, shuffle=True, random_state=0)
+
+cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL', 'AMOXI/CLAV .1', 'PIP/TAZO.1', 'CEFTAZIDIMA.1', 'CEFOTAXIMA.1', 'CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1', 'MEROPENEM.1', 'ERTAPENEM.1']
+# Prueba loca: dejar solo blee y carbas
+# cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL', 'AMOXI/CLAV ', 'PIP/TAZO', 'CEFTAZIDIMA', 'CEFOTAXIMA', 'CEFEPIME', 'AZTREONAM', 'IMIPENEM', 'MEROPENEM', 'ERTAPENEM']
+# cols = ['GENTAMICINA', 'TOBRAMICINA', 'AMIKACINA', 'FOSFOMICINA', 'CIPROFLOXACINO', 'COLISTINA']
+# gm_full_data = gm_full_data.drop(gm_full_data[gm_full_data['Fenotipo CP']==1].index)
+# gm_full_data['Fenotipo CP+ESBL'][gm_full_data['Fenotipo CP']==1] = 1
+
+complete_samples = np.unique(ryc_full_data[~ryc_full_data[cols].isna().any(axis=1)].index)
+missing_samples = np.unique(ryc_full_data[ryc_full_data[cols].isna().any(axis=1)].index).tolist()
+
+fold_storage_name = "data/RYC_10STRATIFIEDfolds_muestrascompensada_cpblee.pkl"
+gm_folds = {"train": [], "val": []}
+
+gm_complete_y = ryc_full_data[cols].loc[complete_samples]
+
+
+for tr_idx, tst_idx in mskf.split(complete_samples, gm_complete_y):
+    train_samples = complete_samples[tr_idx].tolist()
+    # train_samples = [idx for idx in train_samples if idx != '675']
+    # test_samples = complete_samples[tst_idx].tolist() + ['675']
+    test_samples = complete_samples[tst_idx].tolist()
+    for col in gm_complete_y.columns:
+        # COMPROBAR SI ESTÁN DESCOMPENSADAS EN ENTRENAMIENTO
+        low_appear_value = int(gm_complete_y[col].loc[train_samples].value_counts().index[1])
+        difference = abs(np.diff(gm_complete_y[col].loc[train_samples].value_counts()))
+        if int(difference) > int(40) and (gm_complete_y[col].loc[train_samples].value_counts().values<50).any():
+            low_appear_rep_idx = gm_complete_y[col].loc[train_samples][gm_complete_y[col].loc[train_samples]==low_appear_value].sample(50, replace=1).index.tolist()
+            train_samples = train_samples + low_appear_rep_idx
+        # COMPROBAR SI TENGO MUESTRAS DE LOS DOS TIPOS EN TEST
+        if gm_complete_y[col].loc[test_samples].value_counts().shape[0]<2:
+            print("NO STRATIFIED FOR AB: "+col)
+            print(gm_complete_y[col].loc[test_samples].value_counts())
+            # Mirar cuale s el valor que no tenemos en test
+            no_samples_value = int(np.logical_not(gm_complete_y[col].loc[test_samples].value_counts().index[0]))
+            # Buscamos el valor entre los de training
+            new_test_sample = gm_complete_y[col].loc[train_samples][gm_complete_y[col].loc[train_samples]==no_samples_value].sample(1).index.values.tolist()
+            # Lo metemos en test y lo eliminamos de train
+            test_samples = test_samples+new_test_sample
+            train_samples = [idx for idx in train_samples if idx not in test_samples]
+            print("Ahora debería estar correcto "+col)
+            print(gm_complete_y[col].loc[test_samples].value_counts())  
+    for idx in test_samples:
+        print(idx in train_samples) 
+    train_samples = train_samples + missing_samples
+    gm_folds["train"].append(train_samples)
+    gm_folds["val"].append(test_samples)
+
+with open(fold_storage_name, 'wb') as f:
         pickle.dump(gm_folds, f)
 
+print("hola")
 print("a ver")
 # from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 

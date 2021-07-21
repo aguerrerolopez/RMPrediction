@@ -17,6 +17,9 @@ import pyro.contrib.gp as gp
 from lib import cat_ord_1epoch as categorical_ss_nn
 import time
 import logging
+sys.path.append('../maldi_PIKE/maldi-learn/maldi_learn')
+from data import MaldiTofSpectrum
+from kernels import DiffusionKernel
 
 logging.basicConfig(filename='./errors10.log', level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
@@ -109,7 +112,10 @@ class SSHIBA(object):
         n = []
         # TODO: quitar este for y hacerlo en una sola linea
         for (m,arg) in enumerate(args):
-            n.append(int(arg['data'].shape[0]))
+            if arg['kernel'] == 'pike':
+                n.append(int(len(arg['data'])))
+            else:
+                n.append(int(arg['data'].shape[0]))
         self.n_max = np.max(n)
 
         self.n = []
@@ -131,25 +137,30 @@ class SSHIBA(object):
         self.cat_nn = {}
         self.test_acc = []
         self.cat_counter = 0
+        self.kernel = {} 
 
         m = -1
         for arg in args:
             m += 1
-            if not (None in arg['data']):
-                self.n.append(int(arg['data'].shape[0]))
-                if arg['method'] == 'reg':   #Regression
-                    self.d.append(int(arg['data'].shape[1]))
-                elif arg['method'] == 'cat': #Categorical
-                    self.d.append(int(arg['h_dim']))
-                elif arg['method'] == 'ord': #Categorical
-                    self.d.append(int(arg['h_dim']))
-                elif arg['method'] == 'mult': #Multilabel
-                    if len(arg['data'].shape) < 2:
-                        arg['data'] = arg['data'][:, np.newaxis]
-                    self.d.append(int(arg['data'].shape[1]))
-            elif not (None in self.W_init):
-                self.n.append(0)
-                self.d.append(self.W_init[m]['mean'].shape[0])
+            if arg['kernel'] != 'pike':
+                if not (None in arg['data']):
+                    self.n.append(int(arg['data'].shape[0]))
+                    if arg['method'] == 'reg':   #Regression
+                        self.d.append(int(arg['data'].shape[1]))
+                    elif arg['method'] == 'cat': #Categorical
+                        self.d.append(int(arg['h_dim']))
+                    elif arg['method'] == 'ord': #Categorical
+                        self.d.append(int(arg['h_dim']))
+                    elif arg['method'] == 'mult': #Multilabel
+                        if len(arg['data'].shape) < 2:
+                            arg['data'] = arg['data'][:, np.newaxis]
+                        self.d.append(int(arg['data'].shape[1]))
+                elif not (None in self.W_init):
+                    self.n.append(0)
+                    self.d.append(self.W_init[m]['mean'].shape[0])
+            else:
+                self.n.append(len(arg['data']))
+                self.d.append(len(arg['data']))
             self.sparse.append(arg['sparse'])
             self.sparse_fs.append(arg['sparse_fs'])
             self.center.append(arg['center'])
@@ -197,11 +208,17 @@ class SSHIBA(object):
                 elif self.k[m] == 'poly':
                     from sklearn.metrics.pairwise import polynomial_kernel
                     data = polynomial_kernel(self.X[m]['X'], Y = self.V[m], degree = self.deg[m], gamma=arg['sig'])
+                elif self.k[m] == 'pike':
+                    self.kernel[m] = DiffusionKernel(sigma=10)
+                    print("Creating PIKE kernel, this might take a while...")
+                    data = self.kernel[m](self.X[m]['X'])
+                    print("PIKE created")
                 else:
                     print('Error, selected kernel doesn\'t exist')
                 if self.center[m]:
                     data = self.center_K(data)
-                self.d[m] = self.V[m].shape[0]
+                if self.k[m]!= 'pike': 
+                    self.d[m] = self.V[m].shape[0]
                 self.X[m]['cov'] = np.random.normal(0.0, 1.0, self.n_max * self.d[m]).reshape(self.n_max, self.d[m])**2
 
             #Regression
@@ -805,7 +822,6 @@ class SSHIBA(object):
                     X_SS = np.copy(self.X[m]['cov']) # We define a copy of X's covariance matrix to set the observed values to 1 in order to calculate the log determinant
                     X_SS[~self.SS_mask[m]] = 1
                     self.X[m]['sumlogdet'] = np.sum(np.log(X_SS))
-
                 else:
                     self.X[m]['prodT'] = np.dot(self.X[m]['mean'].T, self.X[m]['mean'])
                 #Update of the variable tau
@@ -1451,6 +1467,8 @@ class SSHIBA(object):
                         # Lineal Kernel
                         if self.k[m] == 'linear':
                             arg['data'] = np.dot(self.X[m]['X'], self.V[m].T)
+                        elif self.k[m] == 'pike':
+                            arg['data'] = self.kernel[m](self.X[m]['X'])
                         # RBF Kernel
                         elif self.k[m] == 'rbf':
                             if sig == 'auto':
@@ -1757,7 +1775,7 @@ class LinearARD_pytorch(nn.Module):
 
 class SparseELBO(nn.Module):
 
-    def __init__(self, X, V, fs, lr=1e-3, kernel='rbf'):
+    def __init__(self, X, V, fs, lr=1e-0, kernel='rbf'):
         '''
         This class optimizes the lengthscale of each dimension of the X and V data points
         to give ARD to the system.

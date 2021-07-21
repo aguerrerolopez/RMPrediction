@@ -16,6 +16,7 @@
 *.lzma
 *.cab
 *.xar
+*.ipynb_checkpoints
 
 # Ignore json
 *.json
