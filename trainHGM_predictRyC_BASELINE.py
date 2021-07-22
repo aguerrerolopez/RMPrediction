@@ -9,16 +9,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import roc_auc_score as auc
 import pandas as pd
 
-# Telegram bot
-def notify_ending(message):
-    with open('./keys_file.json', 'r') as keys_file:
-        k = json.load(keys_file)
-        token = k['telegram_token']
-        chat_id = k['telegram_chat_id']
-    bot = telegram.Bot(token=token)
-    bot.sendMessage(chat_id=chat_id, text=message)
-
-
 ##################### PARAMETERS SELECTION ####################3
 # Which baseline do you want to use:
 svm = 0
@@ -91,7 +81,7 @@ y_tr = np.hstack((x1,y0))
 y_tst = np.hstack((ryc_data['fen'], ryc_data['binary_ab']))
 
 
-##################### TRAIN BASELINES AND PREDICT ######################333
+##################### TRAIN BASELINES AND PREDICT ######################
 
 if rf:
     from sklearn.ensemble import RandomForestClassifier as RFC
