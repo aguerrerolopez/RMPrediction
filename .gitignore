@@ -28,7 +28,7 @@
 *.pdf
 # Not public datasets
 data/
-# Not public results too heavy files
+# Not public results
 Results/
 # Packing-only formats
 *.iso
@@ -47,6 +47,4 @@ Results/
 *.txz
 
 /old/
-
-/wandb/
-carolineweis_preprocess.py
+/TopF/
