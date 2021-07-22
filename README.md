@@ -3,7 +3,7 @@
 ## Folder structure:
 
 - **Data folder**:
-    - Reproducibilidad: data collected during 3 days of the same Klebsiellas from _Gregorio Marañón_ Hospital (HGM) and normalized by TIC[[1]](#1) normalization.
+    - Reproducibilidad: data collected during 3 days of the same Klebsiellas from _Gregorio Marañón_ Hospital (HGM) and normalized by TIC normalization.
     - Klebsiellas_RyC: data collected during 3 days of the same Klebsiellas from _Ramón y Cajal_ Hospital (RyC) and normalized by TIC normalization.
     - DB_conjunta.xlsx: phenotype resistant mechanisms, genotype resistant mechanisms and antibiotic resistance data from both hospitals.
 - **Results**: pkl files with the SSHIBA model trained for each case.
@@ -27,7 +27,7 @@ The baselines proposed are implemented in:
 - trainHGM_predictHRC_BASELINE.py: training with HGM data and testing with HRC data. Different baselines can be found inside.
 
 ## SSHIBA model:
-The model used to learn the data is **SSHIBA** [[2]](#2) and its kernel approach **KSSHIBA** [[3]](#3). Two scenarios are found:
+The model used to learn the data is **SSHIBA** [[1]](#1) and its kernel approach **KSSHIBA** [[2]](#2). Two scenarios are found:
 * First scenario: HGM data.
     - Views:
         - MALDI linear/rbf kernel.
@@ -60,17 +60,11 @@ All this calculus and plots code can be found in:
 
 ## References
 <a id="1">[1]</a>
-Deininger, S.O., et al. (2011) 
-Normalization in MALDI-TOF Imaging Datasets of Proteins: Practical Considerations. 
-Analytical and Bioanalytical Chemistry, 401, 167-181.
-https://doi.org/10.1007/s00216-011-4929-z
-
-<a id="2">[2]</a>
 Sevilla-Salcedo, Carlos, Vanessa Gómez-Verdejo, and Pablo M. Olmos. 
 "Sparse Semi-supervised Heterogeneous Interbattery Bayesian Analysis." 
 arXiv preprint arXiv:2001.08975 (2020).
 
-<a id="3">[3]</a>
+<a id="2">[2]</a>
 Sevilla-Salcedo, C., Guerrero-López, A., Olmos, P. M., & Gómez-Verdejo, V. (2020). 
 Bayesian Sparse Factor Analysis with Kernelized Observations. 
 arXiv preprint arXiv:2006.00968.
