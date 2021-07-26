@@ -17,7 +17,7 @@ We have two preprocess data scripts:
     - data_hgm.py
     - data_hgm.py
 
-Every scripts does the same. First, we read the data of the 3 days of the hospital. For each unique sample we have it repetead several times, this amount of times can move between 1 and 12 times. To balance the data we propose the median aproach: for each unique sample we calculate the median synthethic sample and then we make the difference between all the real samples and our median one. The sample that is closest to our median is the one that we are going to use to train our model. In that way we get rid of possible outliers and measurement errors. It may occur that for a specific family we have heavy unbalanced data such as AMOXICILINA which in _HGM_ we have 83 non-resistant samples and 211 resistant ones. To tackle with that we propose to oversample the minority class labels. After all this we propose to make 10 stratified folds to then test our results. The MALDIs signal is then normalized by TIC technique. The preprocess pipeline can be seen here:
+Every scripts does the same. First, we read the data of the 3 days of the hospital. For each unique sample we have it repetead several times, this amount of times can move between 1 and 12 times. To balance the data we propose the median aproach: for each unique sample we calculate the median synthethic sample and then we make the difference between all the real samples and our median one. The sample that is closest to our median is the one that we are going to use to train our model. In that way we get rid of possible outliers and measurement errors. It may occur that for a specific family we have heavy unbalanced data such as AMOXICILINA which in _HGM_ we have 83 non-resistant samples and 211 resistant ones. To tackle with that we propose to oversample the minority class labels. After all this we propose to make 10 stratified folds to then test our results. The MALDIs signal is then normalized by TIC technique. The preprocess pipeline can be seen in Figure 1.
 ![alt text](images_readme/preprocess.png)
 
 
@@ -27,23 +27,25 @@ The baselines proposed are implemented in:
 - trainHGM_predictHRC_BASELINE.py: training with HGM data and testing with HRC data. Different baselines can be found inside.
 
 ## SSHIBA model:
-The model used to learn the data is **SSHIBA** [[1]](#1) and its kernel approach **KSSHIBA** [[2]](#2). Two scenarios are found:
-* First scenario: HGM data.
-    - Views:
-        - MALDI linear/rbf kernel.
-        - Phenotype Resistant Mechanism multilabel.
-        - 9 multilabel views: one per antibiotic.
-The script is:
+The model used to learn the data is Sparse Semi-supervised Heterogeneous Interbattery Bayesian Analysis (**SSHIBA**) [[1]](#1) and its kernel approach kernelized-SSHIBA (**KSSHIBA**) [[2]](#2). SSHIBA is a Bayesian kernel model capable of jointly working with heterogeneous multi-view data such as continuous kernelized data or multilabel, as well as dealing with missing data in any view. For this work, two scenarios are found.
+
+### First scenario:
+ The first scenario is presented in Figure 2.
+![alt text](images_readme/MODEL.jpeg)
+This scenario needs to work with three views:
+* <img src="https://render.githubusercontent.com/render/math?math=k_{n,:}^{m}">: MALDI kernelized (linear, rbf or pike) view.
+* <img src="https://render.githubusercontent.com/render/math?math=t_{n,:}^{RM}">: Phenotype Resistant Mechanism multilabel view.
+* <img src="https://render.githubusercontent.com/render/math?math=t_{n,:}^{P}">: 9 multilabel views: one per antibiotic.
+
+The script is found in:
 * gm_model.py: SSHIBA model trained and tested in HGM data.
 
-* Second scenario: HGM data for training and HRC data for testing.
-    - Views:
-        - MALDI linear/rbf kernel.
-        - Genotype Resistant Mechanism multilabel: missing for HGM, full for HRC.
-        - Phenotype Resistant Mechanism multilabel.
-        - 9 multilabel views: one per antibiotic.
+### Second scenario:
 
-The script is:
+Then, a second scenario is presented where the same model is used but adding a new extra view:
+* <img src="https://render.githubusercontent.com/render/math?math=t_{n,:}^{GRM}"> Genotype Resistant Mechanism multilabel: missing for HGM, full for HRC.
+
+The script is found in:
 * trainHGM_predictHRC_model.py: SSHIBA model trained in HGM data and tested in HRC data.
 
 
