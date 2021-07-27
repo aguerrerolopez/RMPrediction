@@ -1,4 +1,4 @@
-# Klebsiellas Resistant Mechanisms and Antibiotic Prediction Library
+# Klebsiellas Pneumoniae Resistant Mechanisms and Antimicrobial Resistance Prediction library
 
 ## Folder structure:
 
