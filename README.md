@@ -50,13 +50,23 @@ The script is found in:
 
 
 ## Results:
-We analyse different things about the results:
-- AUC per prediction task
-- Common and private latent space per view
-- W primal space matrix per view
-- Z latent space projection
+### Prediction task:
+The prediction task has been done by semi supervised technique. SSHIBA thinks that every view has to have the same number of data points. If for some views there no exists data points SSHIBA will predict them in semisupervised model. For example, if we have 400 samples of MALDI MS associated with 400 samples of RM multilabel values and we want to use 300 samples to train and 100 to predict the procedure follows: remove 100 samples from the RM multilabel and SSHIBA will predict it. Basically, it will predict any missing sample by using the available information found in the other views corresponding to that sample.
 
-All this calculus and plots code can be found in:
+## Latent space:
+SSHIBA calculates a <img src="https://render.githubusercontent.com/render/math?math=W^{(m)}"> projection matrix associated to each view. However, when the view is kernelized it calculates the dual space projection matrix <img src="https://render.githubusercontent.com/render/math?math=A^{(m)}">, we have to recover the primal space <img src="https://render.githubusercontent.com/render/math?math=W^{(m)}"> projection matrix by doing: <img src="https://render.githubusercontent.com/render/math?math=W^{(m)} = X^{(m)T}A^{(m)}">. 
+This <img src="https://render.githubusercontent.com/render/math?math=W^{(m)}"> is a projection matrix of shape _DxK_ being _D_ the dimension of the data and _K_ the dimension of the latent space that SSHIBA decides by optimisation. Then, each _K_ column of the <img src="https://render.githubusercontent.com/render/math?math=W^{(m)}"> matrix is a projection weight vector associated to each dimension data point and can be interpretable. First, we can plot each the K columns by computing the mean over the D rows to show how every view is correlated to all the others views as we can see in Figure 2:
+![alt text](images_readme/latentspace.png)
+
+This example is extracted from the first scenario shown in the paper. Here we can see that some K latent factor are shared between views, we call it inter-view latent factors such as latent factors 23 and 21 for the four views or latent factor 7 shared between only the RM. However, we can also find latent factors that are only used in one view, we call it intra-views latent factors that works similar as a Principal Component Analysis of that view such as all the rest of latent factors shown in the first row of the figure.
+
+## Peak analysis using W projection matrix
+coming soon...
+
+## Latent space projection in Z
+coming soon..
+
+All this calculus and plots code explained in this section can be found in:
 * show_fullresults.py: for HGM data case.
 * show_results_trainHGM_predictHRC.py: training with HGM and testing in HRC data.
 
