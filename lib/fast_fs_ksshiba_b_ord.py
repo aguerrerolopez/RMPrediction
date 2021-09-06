@@ -12,7 +12,7 @@ from sklearn.metrics import r2_score
 import torch
 from torch import nn, optim
 import pyro.contrib.gp as gp
-# from lib import categorical_nn as categorical_ss_nn
+# from lib import categorical_nn as categorical_sfs_nn
 # from lib import ordinal_nn as categorical_ss_nn
 from lib import cat_ord_1epoch as categorical_ss_nn
 import time
@@ -64,7 +64,7 @@ class SSHIBA(object):
 
     """
 
-    def __init__(self, Kc = 2, prune = 0, fs = 0, SS_sep = 0,  hyper = None, X_init = None,
+    def __init__(self, Kc = 2, prune = 0, fs = 0, SS_sep = 0,  hyper = None, X_init = None, b_init=None,
                  Z_init = None, W_init = [None], alpha_init = None,
                  tau_init = None, gamma_init = None, area_mask = None):
         self.Kc = int(Kc) # Number of  latent variables
@@ -73,6 +73,7 @@ class SSHIBA(object):
         self.SS_sep = SS_sep
         self.hyper = hyper
         self.X_init = X_init
+        self.b_init = b_init
         self.Z_init = Z_init
         self.W_init = W_init
         self.alpha_init = alpha_init
@@ -416,10 +417,12 @@ class SSHIBA(object):
             self.Kc = self.W_init[0]['mean'].shape[1]
 
         self.q_dist = Qdistribution(self.X, self.n, self.n_max, self.d, self.Kc, self.m, self.sparse, self.method, self.SS,
-                                    self.SS_mask, self.area_mask, self.hyper,
+                                    self.SS_mask, self.area_mask, self.hyper, b_init = self.b_init,
                                     Z_init = self.Z_init, W_init = self.W_init, alpha_init = self.alpha_init,
                                     tau_init = self.tau_init, gamma_init = self.gamma_init)
         self.fit_iterate(**kwargs)
+
+
 
     def fit_iterate(self, max_iter = int(1e3), pruning_crit = 1e-6, tol = 1e-3, feat_crit = 1e-6, perc = False, verbose = 0, Y_tst = [None],
                     X_tst = [None], X_tr = [None], HL = 0, AUC = 0, ACC= 0, mse = 0, R2 = 0, m_in = [0], m_out = 1, steps=50, nnd=None,
@@ -1506,7 +1509,7 @@ class SSHIBA(object):
 
         return t_pred_proba
 
-    def predict(self, m_in, m_out, k_in,  *args):
+    def predict(self, m_in, m_outs, *args):
         """Apply the model learned in the training process to new data.
 
         This function uses the variables of the specified views to predict
@@ -1524,7 +1527,7 @@ class SSHIBA(object):
 
         __m_in: list.
             This value indicates which of the views are used as input.
-        __m_out: list.
+        __m_outs: list.
             This value indicates which of the input views is used as output.
         """
 # =============================================================================
@@ -1557,8 +1560,8 @@ class SSHIBA(object):
                     #Feature selection
                     #Lineal Kernel
                     if k == 'linear':
-                        var = np.sqrt(self.sparse_K[0].get_params()[1])
-                        # var = 1
+                        # var = np.sqrt(self.sparse_K[0].get_params()[1])
+                        var = 1
                         arg['data'] = np.dot(var*X, (var*V).T)
                     #RBF Kernel
                     elif k == 'rbf':
@@ -1584,33 +1587,45 @@ class SSHIBA(object):
         else:
             print ('Cov Z is not invertible')
 
-        #Regression
-        if self.method[m_out] == 'reg':
-            #Expectation X
-            mean_x = np.dot(self.Z_mean,q.W[m_out]['mean'].T) + q.b[m_out]['mean']
-            #Variance X
-            var_x = q.tau_mean(m_out)**(-1)*np.eye(self.d[m_out]) + np.linalg.multi_dot([q.W[m_out]['mean'], Z_cov, q.W[m_out]['mean'].T])
+        predictions = {}
+        for m_out in m_outs:
+            #Regression
+            if self.method[m_out] == 'reg':
+                #Expectation X
+                mean_x = np.dot(self.Z_mean,q.W[m_out]['mean'].T) + q.b[m_out]['mean']
+                #Variance X
+                var_x = q.tau_mean(m_out)**(-1)*np.eye(self.d[m_out]) + np.linalg.multi_dot([q.W[m_out]['mean'], Z_cov, q.W[m_out]['mean'].T])
 
-            return mean_x, var_x
+                predictions["output_view"+str(m_out)] = {'mean_x': mean_x, 'var_x': var_x}
 
-        #Categorical
-        elif self.method[m_out] == 'cat':
-            t_pred_proba = self.cat_nn[m_out].predict_proba(Z=self.Z_mean,
-                                                            W=q.W[m_out]['mean'],
-                                                            b=q.b[m_out]['mean'])
-            return t_pred_proba
 
-        #Multilabel
-        elif self.method[m_out] == 'mult':
-            #Expectation X
-            m_x = np.dot(self.Z_mean, q.W[m_out]['mean'].T) + q.b[m_out]['mean']
-            #Variance X
-            var_x = q.tau_mean(m_out)**(-1)*np.eye(self.d[m_out]) + np.linalg.multi_dot([q.W[m_out]['mean'], Z_cov, q.W[m_out]['mean'].T])
-            p_t = np.zeros((n_pred,self.d[m_out]))
-            #Probability t
-            for d in np.arange(self.d[m_out]):
-                p_t[:,d] = self.sigmoid(m_x[:,d]*(1+math.pi/8*var_x[d,d])**(-0.5))
-            return p_t
+            #Categorical
+            elif self.method[m_out] == 'cat':
+                t_pred_proba = self.cat_nn[m_out].predict_proba(Z=self.Z_mean,
+                                                                W=q.W[m_out]['mean'],
+                                                                b=q.b[m_out]['mean'])
+                
+            #Multilabel
+            elif self.method[m_out] == 'mult':
+                print("sale multilabel")
+                #Expectation X
+                m_x = np.dot(self.Z_mean, q.W[m_out]['mean'].T) + q.b[m_out]['mean']
+                #Variance X
+                var_x = q.tau_mean(m_out)**(-1)*np.eye(self.d[m_out]) + np.linalg.multi_dot([q.W[m_out]['mean'], Z_cov, q.W[m_out]['mean'].T])
+                
+                mean_t = np.zeros((n_pred,self.d[m_out]))
+                var_t = np.zeros((n_pred,self.d[m_out]))
+                #Probability t
+                for d in np.arange(self.d[m_out]):
+                    mean_t[:,d] = self.sigmoid(m_x[:,d]*(1+math.pi/8*var_x[d,d])**(-0.5))
+                    # mean_t[:,d] = self.sigmoid(m_x[:,d])
+                    var_t[:, d] = np.exp(m_x[:,d]*(1+math.pi/8*var_x[d,d])**(-0.5))/(1+np.exp(m_x[:,d]*(1+math.pi/8*var_x[d,d])**(-0.5))**2)
+                    # var_t[:,d] = np.exp(m_x[:, d])/(1+np.exp(m_x[:, d]))**2
+                predictions["output_view"+str(m_out)] = {'mean_x': mean_t, 'var_x': var_t}
+
+        return predictions
+                
+
 
     def HGamma(self, a, b):
         """Compute the entropy of a Gamma distribution.
@@ -1932,7 +1947,7 @@ class Qdistribution(object):
         number of views in the model.
 
     """
-    def __init__(self, X, n, n_max, d, Kc, m, sparse, method, SS, SS_mask, area_mask, hyper, Z_init=None,
+    def __init__(self, X, n, n_max, d, Kc, m, sparse, method, SS, SS_mask, area_mask, hyper, b_init=None, Z_init=None,
                  W_init=None, alpha_init=None, tau_init=None, gamma_init=None):
         self.n = n
         self.n_max = n_max
@@ -1957,9 +1972,9 @@ class Qdistribution(object):
             self.xi.append(np.sqrt(self.X[m]['cov'] + self.X[m]['mean']**2))
 
         # The remaning parameters at random
-        self.init_rnd(X, method, SS, SS_mask, Z_init, W_init)
+        self.init_rnd(X, method, SS, SS_mask, b_init, Z_init, W_init)
 
-    def init_rnd(self, X, method, SS, SS_mask, Z_init=None, W_init=None):
+    def init_rnd(self, X, method, SS, SS_mask, b_init=None, Z_init=None, W_init=None):
         """ Hyperparameter initialisation.
 
         Parameters
@@ -1985,6 +2000,7 @@ class Qdistribution(object):
         self.b = copy.deepcopy(W)
         self.tc = {}
         Z = copy.deepcopy(W[0])
+
 
         # Initialization of the latent space matrix Z
         Z['mean'] = np.random.normal(0.0, 1.0, self.n_max * self.Kc).reshape(self.n_max, self.Kc)
@@ -2023,16 +2039,17 @@ class Qdistribution(object):
                 W[m]['prodTalpha'] = np.zeros((self.d[m],))
                 W[m]['prodTgamma'] = np.zeros((self.Kc,))
                 W[m]['sumlogdet'] = 0
-
-            if method[m] == 'reg' or method[m] == 'mult':
-                self.b[m]['cov'] = (1 + self.n[m] * self.tau_mean(m))**(-1) * np.eye(self.d[m])
-                self.b[m]['mean'] = self.tau_mean(m) * np.dot(np.sum(self.X[m]['mean'] - np.dot(self.Z['mean'], W[m]['mean'].T), axis=0)[np.newaxis,:], self.b[m]['cov'])
-                self.b[m]['prodT'] = np.sum(self.b[m]['mean']**2) + self.d[m]*self.b[m]['cov'][0,0]    #mean of a noncentral chi-squared distribution
+            if b_init is None:
+                if method[m] == 'reg' or method[m] == 'mult':
+                    self.b[m]['cov'] = (1 + self.n[m] * self.tau_mean(m))**(-1) * np.eye(self.d[m])
+                    self.b[m]['mean'] = self.tau_mean(m) * np.dot(np.sum(self.X[m]['mean'] - np.dot(self.Z['mean'], W[m]['mean'].T), axis=0)[np.newaxis,:], self.b[m]['cov'])
+                    self.b[m]['prodT'] = np.sum(self.b[m]['mean']**2) + self.d[m]*self.b[m]['cov'][0,0]    #mean of a noncentral chi-squared distribution
+                else:
+                    self.b[m]['cov'] = np.zeros((self.d[m],self.d[m]))
+                    self.b[m]['mean'] = np.zeros((self.d[m],))
+                    self.b[m]['prodT'] = np.sum(self.b[m]['mean']**2) + self.d[m]*self.b[m]['cov'][0,0]    #mean of a noncentral chi-squared distribution
             else:
-                self.b[m]['cov'] = np.zeros((self.d[m],self.d[m]))
-                self.b[m]['mean'] = np.zeros((self.d[m],))
-                self.b[m]['prodT'] = np.sum(self.b[m]['mean']**2) + self.d[m]*self.b[m]['cov'][0,0]    #mean of a noncentral chi-squared distribution
-
+                self.b[m] = b_init[m]
         self.W = W if None in W_init else W_init
 
     def qGamma(self,a,b,m_i,r,mask=None):

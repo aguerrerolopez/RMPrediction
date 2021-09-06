@@ -8,7 +8,7 @@ from pyteomics import mzml
 # PATH TO MZML FILES
 ryc_path = "./data/Klebsiellas_RyC/"
 # Columns to read from excel data
-cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL', 'AMOXI/CLAV .1', 'PIP/TAZO.1', 'CEFTAZIDIMA.1', 'CEFOTAXIMA.1', 'CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1', 'MEROPENEM.1', 'ERTAPENEM.1']
+cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL','AMOXI/CLAV .1','PIP/TAZO.1','CEFTAZIDIMA.1','CEFOTAXIMA.1','CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1']
 # BOOLEAN TO NORMALIZE BY TIC
 tic_norm=True
 
@@ -64,18 +64,19 @@ del data_int, a, t, file, filename, id, filenames, letter, listOfFiles, erase_en
 
 # RYC FEN/GEN/AB
 aux_ryc = full_data.loc[full_data['Centro'] == 'RyC'].copy().set_index("Número de muestra").drop('E11')
+aux_ryc['Fenotipo CP+ESBL'] = aux_ryc['Fenotipo CP+ESBL']+aux_ryc['Fenotipo CP']
 aux_ryc = aux_ryc.replace("R", np.float(1)).replace("I", "S").replace("S", np.float(0)).replace("-", np.nan)
 ryc_full_data = pd.merge(how='outer', left=ryc_data_1s, right=aux_ryc, left_on='Número de muestra', right_on='Número de muestra')
 
 ################################ FOLDS CREATION ##########################
-mskf = MultilabelStratifiedKFold(n_splits=10, shuffle=True, random_state=0)
+mskf = MultilabelStratifiedKFold(n_splits=5, shuffle=True, random_state=0)
 # GET RID OF MISSING SAMPLES FOR FOLD CREATION
 complete_samples = np.unique(ryc_full_data[~ryc_full_data[cols].isna().any(axis=1)].index)
 missing_samples = np.unique(ryc_full_data[ryc_full_data[cols].isna().any(axis=1)].index).tolist()
 gm_complete_y = ryc_full_data[cols].loc[complete_samples]
 
 # PATH TO SAVE FOLDS
-fold_storage_name = "data/RYC_10STRATIFIEDfolds_muestrascompensada_cpblee.pkl"
+fold_storage_name = "data/RYC_5STRATIFIEDfolds_muestrascompensada_experimentAug.pkl"
 gm_folds = {"train": [], "val": []}
 
 for tr_idx, tst_idx in mskf.split(complete_samples, gm_complete_y):
@@ -123,12 +124,19 @@ if tic_norm:
 else:
     print("NO TIC NORMALIZATION PERFORMED")
 
-ryc_dict = {"full": ryc_full_data,
-            "maldi": ryc_full_data['maldi'].copy(),
-            "fen": ryc_full_data.loc[:, 'Fenotipo CP':'Fenotipo noCP noESBL'].copy(),
-            "gen": ryc_full_data.loc[:, 'Genotipo CP':'Genotipo noCP noESBL'].copy(),
-            "cmi": ryc_full_data.iloc[:, np.arange(13, len(ryc_full_data.columns) - 5, 2)].copy(),
-            "binary_ab": ryc_full_data.iloc[:, np.arange(14, len(ryc_full_data.columns) - 5, 2)].copy()}
 
-with open("data/ryc_data_mediansample_only2-12_TIC.pkl", 'wb') as f:
+###################### Categorizes the types ###############
+ryc_full_data['CP gene'][ryc_full_data['CP gene'].isna()]=0
+ryc_full_data['CP gene'][ryc_full_data['CP gene']=='KPC-3']=0
+ryc_full_data['CP gene'][ryc_full_data['CP gene']=='OXA-181']=0
+ryc_full_data['CP gene'][ryc_full_data['CP gene']=='OXA-48']=1
+ryc_full_data['CP gene'][ryc_full_data['CP gene']=='OXA-48+VIM-2']=1
+ryc_full_data['CP gene'][ryc_full_data['CP gene']=='KPC-3+VIM-2']=0
+ryc_full_data['CP gene'][ryc_full_data['CP gene']=='NDM-1']=0
+
+cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL', 'AMOXI/CLAV .1', 'PIP/TAZO.1', 'CEFTAZIDIMA.1', 'CEFOTAXIMA.1', 'CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1', 'CP gene']
+ryc_dict = {"maldi": ryc_full_data['maldi'].copy(),
+            "full": ryc_full_data[cols].copy()}
+
+with open("data/ryc_data_expAug.pkl", 'wb') as f:
     pickle.dump(ryc_dict, f)

@@ -21,6 +21,20 @@ folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensada_pruebaloca.pkl"
 with open(folds_path, 'rb') as pkl:
     folds = pickle.load(pkl)
 
+plt.figure(figsize=[15,10])
+plt.plot(range(2000,2500), np.mean(np.vstack(ryc_data['maldi']), axis=0)[0:500], color='tab:blue')
+plt.fill_between(range(2000,2500), np.mean(np.vstack(ryc_data['maldi']), axis=0)[0:500]-np.std(np.vstack(ryc_data['maldi']), axis=0)[0:500], np.mean(np.vstack(ryc_data['maldi']), axis=0)[0:500]+np.std(np.vstack(ryc_data['maldi']), axis=0)[0:500], color='tab:blue', alpha=0.2)
+plt.show()
+####### Check the interesting peaks
+a=0
+for sample in ryc_data['maldi'].index:
+    a+=1
+    if a>=60:
+        plt.figure()
+        plt.title(sample)
+        plt.plot(np.arange(9700,10200), ryc_data['maldi'][sample][7700:8200])
+        plt.grid()
+        plt.show()
 
 old_fen = hgm_data['fen']
 old_fen = old_fen.drop(old_fen[old_fen['Fenotipo CP']==1].index)
@@ -37,7 +51,7 @@ ryc_data['fen'] = old_fen[['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP 
 ab_cols =  ['AMOXI/CLAV .1', 'PIP/TAZO.1', 'CEFTAZIDIMA.1', 'CEFOTAXIMA.1', 'CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1', 'MEROPENEM.1', 'ERTAPENEM.1']
 
 full_predict = pd.concat([ryc_data['fen'], ryc_data['binary_ab'][ab_cols].loc[ryc_data['fen'].index]], axis=1)
-full_predict = full_predict.dropna()
+# full_predict = full_predict.dropna()
 
 ryc_data['maldi'] = ryc_data['maldi'].loc[full_predict.index]
 ryc_data['binary_ab'] = full_predict[ab_cols]
@@ -102,7 +116,9 @@ for v, view in enumerate(titles_views):
     plt.show()
 
 
-####################################### PLOT SOME FEATURES IN DETAIL ###################################3
+####################################### PLOT SOME FEATURES IN DETAIL ###################################
+plt.rcParams.update({'font.size': 22})
+plt.rcParams.update({"axes.grid" : True})
 X=results[model_name].X[0]['X']
 W_maldi=X.T@results[model_name].q_dist.W[0]['mean']
 # SELECT HERE WHICH FEATURES DO YOU WANT TO PLOT IN DETAIL!!!!!
@@ -117,14 +133,14 @@ hgm_mald_sen = np.vstack(hgm_data['maldi'][(hgm_data['fen']['Fenotipo CP+ESBL']=
 ryc_mald_res = np.vstack(ryc_data['maldi'][(ryc_data['fen']['Fenotipo CP+ESBL']==1)].values)
 ryc_mald_sen = np.vstack(ryc_data['maldi'][(ryc_data['fen']['Fenotipo CP+ESBL']==0)].values)
 plt.figure(figsize=[15,10])
-plt.plot(np.arange(2000,12000),np.mean(hgm_mald_res, axis=0), alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(2000,12000),np.mean(hgm_mald_res, axis=0), 'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(2000,12000),np.mean(ryc_mald_res, axis=0), '--',alpha=0.5, label="RyC Resistant")
 plt.legend()
 plt.title("Resistant CP and ESBL ")
 plt.show()
 
 plt.figure(figsize=[15,10])
-plt.plot(np.arange(2000,12000),np.mean(hgm_mald_sen, axis=0), alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(2000,12000),np.mean(hgm_mald_sen, axis=0),'k', alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(2000,12000),np.mean(ryc_mald_sen, axis=0), '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("SEnsible CP+ESBL")
@@ -136,14 +152,14 @@ hgm_mald_sen = np.vstack(hgm_data['maldi'][(hgm_data['fen']['Fenotipo  ESBL']==0
 ryc_mald_res = np.vstack(ryc_data['maldi'][(ryc_data['fen']['Fenotipo  ESBL']==1)].values)
 ryc_mald_sen = np.vstack(ryc_data['maldi'][(ryc_data['fen']['Fenotipo  ESBL']==0)].values)
 plt.figure(figsize=[15,10])
-plt.plot(np.arange(2000,12000),np.mean(hgm_mald_res, axis=0), alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(2000,12000),np.mean(hgm_mald_res, axis=0), 'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(2000,12000),np.mean(ryc_mald_res, axis=0), '--',alpha=0.5, label="RyC Resistant")
 plt.legend()
 plt.title("Resistant ESBL")
 plt.show()
 
 plt.figure(figsize=[15,10])
-plt.plot(np.arange(2000,12000),np.mean(hgm_mald_sen, axis=0), alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(2000,12000),np.mean(hgm_mald_sen, axis=0),'k',  alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(2000,12000),np.mean(ryc_mald_sen, axis=0), '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("SEnsible ESBL")
@@ -155,14 +171,14 @@ hgm_mald_sen = np.vstack(hgm_data['maldi'][(hgm_data['fen']['Fenotipo noCP noESB
 ryc_mald_res = np.vstack(ryc_data['maldi'][(ryc_data['fen']['Fenotipo noCP noESBL']==1)].values)
 ryc_mald_sen = np.vstack(ryc_data['maldi'][(ryc_data['fen']['Fenotipo noCP noESBL']==0)].values)
 plt.figure(figsize=[15,10])
-plt.plot(np.arange(2000,12000),np.mean(hgm_mald_res, axis=0), alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(2000,12000),np.mean(hgm_mald_res, axis=0),'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(2000,12000),np.mean(ryc_mald_res, axis=0), '--',alpha=0.5, label="RyC Resistant")
 plt.legend()
 plt.title("Resistant noCP noESBL")
 plt.show()
 
 plt.figure(figsize=[15,10])
-plt.plot(np.arange(2000,12000),np.mean(hgm_mald_sen, axis=0), alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(2000,12000),np.mean(hgm_mald_sen, axis=0),'k', alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(2000,12000),np.mean(ryc_mald_sen, axis=0), '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("SEnsible noCP noESBL")
@@ -179,9 +195,9 @@ plt.figure(figsize=[15,10])
 for j,l in enumerate(lf):
     W_proj = W_maldi[:, l]*results[model_name].q_dist.W[2]['mean'][0, l]
     plt.plot(np.arange(2200,2500), W_proj[200:500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
-plt.plot(np.arange(2200,2500),np.mean(hgm_mald_res, axis=0)[200:500], alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(2200,2500),np.mean(hgm_mald_res, axis=0)[200:500], 'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(2200,2500),np.mean(ryc_mald_res, axis=0)[200:500], '--',alpha=0.5, label="RyC Resistant")
-plt.plot(np.arange(2200,2500),np.mean(hgm_mald_sen, axis=0)[200:500], alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(2200,2500),np.mean(hgm_mald_sen, axis=0)[200:500], 'k--',alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(2200,2500),np.mean(ryc_mald_sen, axis=0)[200:500], '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("ZOOM IN: CP and ESBL view")
@@ -197,9 +213,9 @@ plt.figure(figsize=[15,10])
 for j,l in enumerate(lf):
     W_proj = W_maldi[:, l]*results[model_name].q_dist.W[2]['mean'][1, l]
     plt.plot(np.arange(2200,2500), W_proj[200:500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
-plt.plot(np.arange(2200,2500),np.mean(hgm_mald_res, axis=0)[200:500], alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(2200,2500),np.mean(hgm_mald_res, axis=0)[200:500],'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(2200,2500),np.mean(ryc_mald_res, axis=0)[200:500], '--',alpha=0.5, label="RyC Resistant")
-plt.plot(np.arange(2200,2500),np.mean(hgm_mald_sen, axis=0)[200:500], alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(2200,2500),np.mean(hgm_mald_sen, axis=0)[200:500],'k--', alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(2200,2500),np.mean(ryc_mald_sen, axis=0)[200:500], '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("ZOOM IN: ESBL view")
@@ -215,18 +231,16 @@ plt.figure(figsize=[15,10])
 for j,l in enumerate(lf):
     W_proj = W_maldi[:, l]*results[model_name].q_dist.W[2]['mean'][2, l]
     plt.plot(np.arange(2200,2500), W_proj[200:500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
-plt.plot(np.arange(2200,2500),np.mean(hgm_mald_res, axis=0)[200:500], alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(2200,2500),np.mean(hgm_mald_res, axis=0)[200:500],'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(2200,2500),np.mean(ryc_mald_res, axis=0)[200:500], '--',alpha=0.5, label="RyC Resistant")
-plt.plot(np.arange(2200,2500),np.mean(hgm_mald_sen, axis=0)[200:500], alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(2200,2500),np.mean(hgm_mald_sen, axis=0)[200:500],'k--', alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(2200,2500),np.mean(ryc_mald_sen, axis=0)[200:500], '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("noCP noESBL")
 plt.show()
 
-
 y_true = ryc_data['binary_ab']
 ph_true = ryc_data['fen']
-
 
 ########### Zoom IN 7400
 #CP+ESBL
@@ -238,14 +252,13 @@ plt.figure(figsize=[15,10])
 for j,l in enumerate(lf):
     W_proj = W_maldi[:, l]*results[model_name].q_dist.W[2]['mean'][0, l]
     plt.plot(np.arange(7350,7500), W_proj[5350:5500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
-plt.plot(np.arange(7350,7500),np.mean(hgm_mald_res, axis=0)[5350:5500], alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(7350,7500),np.mean(hgm_mald_res, axis=0)[5350:5500],'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(7350,7500),np.mean(ryc_mald_res, axis=0)[5350:5500], '--',alpha=0.5, label="RyC Resistant")
-plt.plot(np.arange(7350,7500),np.mean(hgm_mald_sen, axis=0)[5350:5500], alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(7350,7500),np.mean(hgm_mald_sen, axis=0)[5350:5500],'k--', alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(7350,7500),np.mean(ryc_mald_sen, axis=0)[5350:5500], '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("ZOOM IN: CP and ESBL view")
 plt.show()
-
 
 #ESBL
 hgm_mald_res = np.vstack(hgm_data['maldi'][(hgm_data['fen']['Fenotipo  ESBL']==1)].values)
@@ -257,9 +270,9 @@ for j,l in enumerate(lf):
     W_proj = W_maldi[:, l]*results[model_name].q_dist.W[2]['mean'][1, l]
     plt.plot(np.arange(7350,7500), W_proj[5350:5500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
 
-plt.plot(np.arange(7350,7500),np.mean(hgm_mald_res, axis=0)[5350:5500], alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(7350,7500),np.mean(hgm_mald_res, axis=0)[5350:5500], 'k',alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(7350,7500),np.mean(ryc_mald_res, axis=0)[5350:5500], '--',alpha=0.5, label="RyC Resistant")
-plt.plot(np.arange(7350,7500),np.mean(hgm_mald_sen, axis=0)[5350:5500], alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(7350,7500),np.mean(hgm_mald_sen, axis=0)[5350:5500],'k--', alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(7350,7500),np.mean(ryc_mald_sen, axis=0)[5350:5500], '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("ZOOM IN: ESBL view")
@@ -297,9 +310,9 @@ for j,l in enumerate(lf):
     W_proj = W_maldi[:, l]*results[model_name].q_dist.W[2]['mean'][2, l]
     plt.plot(np.arange(9900,10000), W_proj[7900:8000], color=color[j], alpha=0.8, label="Latent feature "+str(l))
 
-plt.plot(np.arange(9900,10000),np.mean(hgm_mald_res, axis=0)[7900:8000], alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(9900,10000),np.mean(hgm_mald_res, axis=0)[7900:8000],'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(9900,10000),np.mean(ryc_mald_res, axis=0)[7900:8000], '--',alpha=0.5, label="RyC Resistant")
-plt.plot(np.arange(9900,10000),np.mean(hgm_mald_sen, axis=0)[7900:8000], alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(9900,10000),np.mean(hgm_mald_sen, axis=0)[7900:8000],'k--', alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(9900,10000),np.mean(ryc_mald_sen, axis=0)[7900:8000], '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("ZOOM IN: CP and ESBL view")
@@ -316,9 +329,9 @@ for j,l in enumerate(lf):
     W_proj = W_maldi[:, l]*results[model_name].q_dist.W[2]['mean'][2, l]
     plt.plot(np.arange(9900,10000), W_proj[7900:8000], color=color[j], alpha=0.8, label="Latent feature "+str(l))
 
-plt.plot(np.arange(9900,10000),np.mean(hgm_mald_res, axis=0)[7900:8000], alpha=0.8, label="HGM Resistant")
+plt.plot(np.arange(9900,10000),np.mean(hgm_mald_res, axis=0)[7900:8000],'k', alpha=0.8, label="HGM Resistant")
 plt.plot(np.arange(9900,10000),np.mean(ryc_mald_res, axis=0)[7900:8000], '--',alpha=0.5, label="RyC Resistant")
-plt.plot(np.arange(9900,10000),np.mean(hgm_mald_sen, axis=0)[7900:8000], alpha=0.8, label="HGM Sensible")
+plt.plot(np.arange(9900,10000),np.mean(hgm_mald_sen, axis=0)[7900:8000],'k--', alpha=0.8, label="HGM Sensible")
 plt.plot(np.arange(9900,10000),np.mean(ryc_mald_sen, axis=0)[7900:8000], '--', alpha=0.5, label="RyC Sensible")
 plt.legend()
 plt.title("ZOOM IN: ESBL view")
@@ -342,8 +355,6 @@ plt.plot(np.arange(9900,10000),np.mean(ryc_mald_sen, axis=0)[7900:8000], '--', a
 plt.legend()
 plt.title("noCP noESBL")
 plt.show()
-
-
 
 
 ################################ TEST AND PREDICTION  ###########################33

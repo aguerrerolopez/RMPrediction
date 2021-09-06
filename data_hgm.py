@@ -60,8 +60,6 @@ gm_median_1s['maldi'] = data_median
 # READ EXCEL DATA
 excel_data = pd.read_excel(excel_path, engine='openpyxl', dtype={'Nº Espectro': str})
 excel_data = excel_data.replace("R", np.float(1)).replace("BLEE", np.float(1)).replace("I", "S").replace("S", np.float(0)).replace("-", np.nan)
-excel_samples = np.unique(excel_data['Nº Espectro'])
-
 
 # FINALLY JOIN THE MALDIs + AMR DATA INTO ONE DATAFRAME
 gm_full_data = pd.merge(how='outer', left=gm_median_1s, right=excel_data, left_on='Nº Espectro',

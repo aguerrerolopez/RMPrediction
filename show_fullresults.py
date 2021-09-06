@@ -1,14 +1,15 @@
+
+#%%
 import pickle
 from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.metrics import roc_auc_score
-
 ######################### PARAMETERS SELECTION ########################################
 # Position where YOU introduced the RM view to the model during training
 phen_pos = 1
 
 ######################### LOAD DATA ########################################
-model_path = "./Results/mediana_10fold_rbf/HGM_full_linear_15views_PRUEBALOCA_prun0.1.pkl"
+model_path = "./Results/normalizados/HGM_linear_normalizados_prun100.pkl"
 folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensada_pruebaloca.pkl"
 data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
 
@@ -59,18 +60,20 @@ for f in range(len(folds["train"])):
         ##### PREDICT CARB AND ESBL
         y_true = y_val[:, h]
         y_pred = results[model_name].t[2+h]['mean'][-y_val.shape[0]:, 0]
-        ###### PREDICT OTHER AB
-        # y_pred = results[model_name].t[1+h]['mean'][-y_val.shape[0]:, 0]
-        # auc_by_ab[f, h] = roc_auc_score(y_true, y_pred)
+    #     ###### PREDICT OTHER AB
+    #     # y_pred = results[model_name].t[1+h]['mean'][-y_val.shape[0]:, 0]
+        auc_by_ab[f, h] = roc_auc_score(y_true, y_pred)
         # if h>5:
         #     break
 
     ### PRED CARB BLEE
     y_true = ph_val
     y_pred = results[model_name].t[1]['mean'][-y_val.shape[0]:, :]
+    print(np.std(y_pred))
     auc_by_phen[f,0] = roc_auc_score(y_true[:, 0], y_pred[:, 0])
     auc_by_phen[f,1] = roc_auc_score(y_true[:, 1], y_pred[:, 1])
     auc_by_phen[f,2] = roc_auc_score(y_true[:, 2], y_pred[:, 2])
+    print(results[model_name].q_dist.W[0]['mean'].shape)
    
 ########## PRINT RESULTS IN MEAN AND STD W.R.T 10 FOLDS
 print("RESULTS PHEN")
@@ -86,6 +89,7 @@ print(np.mean(auc_by_ab))
 print("STD")
 print(np.std(auc_by_ab, axis=0))
 
+#%%
 ######################################### DETAIL RESULTS FOR THE FOLD WHOSE PERFORMANCE IS CLOSER TO THE MEAN #############################
 representative_fold = np.argmin(np.abs(np.sum((auc_by_phen-np.mean(auc_by_phen, axis=0)), axis=1)))
 f=representative_fold
@@ -145,11 +149,18 @@ for v, view in enumerate(titles_views):
     # plt.savefig(spath)
     plt.show()
 
+#%%
+representative_fold = np.argmin(np.abs(np.sum((auc_by_phen-np.mean(auc_by_phen, axis=0)), axis=1)))
+f=representative_fold
+model_name = "model_fold"+str(f)
 ####################################### PLOT SOME FEATURES IN DETAIL ###################################3
 X=results[model_name].X[0]['X']
 W_maldi=X.T@results[model_name].q_dist.W[0]['mean']
-# SELECT HERE WHICH FEATURES DO YOU WANT TO PLOT IN DETAIL!!!!!
-lf = [23, 1, 21]
+
+# SELECT HERE WHICH VIEW DO YOU WANT TO USE TO ORDER THE RELEVANCE OF THE FEATURES
+indicator_pos = 1
+
+lf = np.argsort(-np.abs(results[model_name].q_dist.W[indicator_pos]['mean'])).squeeze()[:3]
 # SOME STYLES
 ls=['--', '-.', ':', (0, (1,1)), (0, (3,5,1,5))]
 
@@ -162,6 +173,7 @@ for k,l in enumerate(lf):
 plt.legend()
 plt.show()
 
+#%%
 # PLOT MEAN OF SENSIBLE AND RESISTANT SAMPLES TO THE 3 RM TASKS
 titles=['to CARB', 'to ESBL']
 for k, col in enumerate(ph.columns):
@@ -187,8 +199,9 @@ for k, col in enumerate(ph.columns):
     plt.show()
 
 
-
+#%%
 # PLOT THE W MATRIX ASSOCIATED TO EACH ONE OF THE 3 RM VIEWS
+plt.rcParams.update({'font.size': 22})
 X=results[model_name].X[0]['X']
 W_maldi=X.T@results[model_name].q_dist.W[0]['mean']
 lf = [lf, lf, lf]
@@ -214,11 +227,12 @@ for k, col in enumerate(ph.columns):
         plt.plot(range(2000,12000), W_proj, color=color[j], alpha=0.8, label="Latent feature "+str(l))
     plt.xticks(ticks=np.arange(2000,12000, 1000), labels=['2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000'])
     plt.legend()
+    plt.grid()
     path = "Results/plots_reunion2406/privadas_"+col+".png"
     # plt.savefig(path)
     plt.show()
 
-
+#%%
 # ###ZOOM IN ROI 1### PLOT THE W MATRIX ASSOCIATED TO EACH ONE OF THE 3 RM VIEWS 
 for k, col in enumerate(ph.columns):
     plt.figure(figsize=[15,10])
@@ -229,13 +243,14 @@ for k, col in enumerate(ph.columns):
     else:
         label1 = "A resistant sample"
         label2 = "A random sensible sample"
-    plt.plot(range(2000,2500), res_samples[k][0:500], '--', alpha=0.2, label=label1)
-    plt.plot(range(2000,2500), sen_samples[k][0:500], alpha=0.2, label=label2)
+    plt.plot(range(2000,2500), res_samples[k][0:500], 'k--',  label=label1)
+    plt.plot(range(2000,2500), sen_samples[k][0:500], 'k',  label=label2)
     for j,l in enumerate(lf[k]):
         W_proj = W_maldi[:, l]*results[model_name].q_dist.W[1]['mean'][k,l]
         plt.plot(range(2000,2500), W_proj[0:500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
     # plt.xticks(ticks=np.arange(2000,12000, 1000), labels=['2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000'])
     plt.legend()
+    plt.grid()
     path = "Results/plots_reunion2406/zoom1_"+col+".png"
     plt.savefig(path)
     plt.show()
@@ -250,13 +265,14 @@ for k, col in enumerate(ph.columns):
         label2 = "A random sensible sample"
     plt.figure(figsize=[15,10])
     plt.title("ZOOM IN: "+titulo[k]+" view")
-    plt.plot(range(7000,7500), res_samples[k][5000:5500], '--', alpha=0.2, label=label1)
-    plt.plot(range(7000,7500), sen_samples[k][5000:5500], alpha=0.2, label=label2)
+    plt.plot(range(7000,7500), res_samples[k][5000:5500], 'k--', label=label1)
+    plt.plot(range(7000,7500), sen_samples[k][5000:5500], 'k', label=label2)
     for j,l in enumerate(lf[k]):
         W_proj = W_maldi[:, l]*results[model_name].q_dist.W[1]['mean'][k,l]
         plt.plot(range(7000,7500), W_proj[5000:5500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
     # plt.xticks(ticks=np.arange(2000,12000, 1000), labels=['2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000'])
     plt.legend()
+    plt.grid()
     path = "Results/plots_reunion2406/zoom2_"+col+".png"
     plt.savefig(path)
     plt.show()
@@ -271,13 +287,15 @@ for k, col in enumerate(ph.columns):
         label2 = "A random sensible sample"
     plt.figure(figsize=[15,10])
     plt.title("ZOOM IN: "+titulo[k]+" view")
-    plt.plot(range(9500,10000), res_samples[k][7500:8000], '--', alpha=0.2, label=label1)
-    plt.plot(range(9500,10000), sen_samples[k][7500:8000], alpha=0.2, label=label2)
+    
+    plt.plot(range(9500,10000), res_samples[k][7500:8000], 'k--', label=label1)
+    plt.plot(range(9500,10000), sen_samples[k][7500:8000], 'k', label=label2)
     for j,l in enumerate(lf[k]):
         W_proj = W_maldi[:, l]*results[model_name].q_dist.W[1]['mean'][k,l]
         plt.plot(range(9500,10000), W_proj[7500:8000], color=color[j], alpha=0.8, label="Latent feature "+str(l))
     # plt.xticks(ticks=np.arange(2000,12000, 1000), labels=['2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000'])
     plt.legend()
+    plt.grid()
     path = "Results/plots_reunion2406/zoom3_"+col+".png"
     plt.savefig(path)
     plt.show()
@@ -292,16 +310,81 @@ for k, col in enumerate(ph.columns):
         label2 = "A random sensible sample"
     plt.figure(figsize=[15,10])
     plt.title("ZOOM IN: "+titulo[k]+" view")
-    plt.plot(range(9900,10000), res_samples[k][7900:8000], '--', alpha=0.2, label=label1)
-    plt.plot(range(9900,10000), sen_samples[k][7900:8000], alpha=0.2, label=label2)
+    
+    plt.plot(range(9900,10000), res_samples[k][7900:8000],'k--', label=label1)
+    plt.plot(range(9900,10000), sen_samples[k][7900:8000], 'k', label=label2)
     for j,l in enumerate(lf[k]):
         W_proj = W_maldi[:, l]*results[model_name].q_dist.W[1]['mean'][k,l]
         plt.plot(range(9900,10000), W_proj[7900:8000], color=color[j], alpha=0.8, label="Latent feature "+str(l))
     # plt.xticks(ticks=np.arange(2000,12000, 1000), labels=['2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000'])
     plt.legend()
+    plt.grid()
     path = "Results/plots_reunion2406/zoom3_"+col+".png"
     plt.show()
 
+#%%
+##### NOW WE CHECK IF THE INTERESTING PEAKS ARE CONSISTENT FOR ALL RESISTENT AND SUSCEPTIBLE SAMPLES
+
+# ###ZOOM IN ROI 1### Check if the peak exists for all the samples
+for k, col in enumerate(ph.columns):
+    plt.figure(figsize=[15,10])
+    plt.title("ZOOM IN: "+titulo[k]+" view")
+    plt.plot(range(2000,2500), res_samples[k][0:500], 'k--',  label=label1)
+    plt.plot(range(2000,2500), sen_samples[k][0:500], 'k',  label=label2)
+    for j,l in enumerate(lf[k]):
+        W_proj = W_maldi[:, l]*results[model_name].q_dist.W[1]['mean'][k,l]
+        plt.plot(range(2000,2500), W_proj[0:500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
+    # plt.xticks(ticks=np.arange(2000,12000, 1000), labels=['2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000'])
+    plt.legend()
+    plt.grid()
+    path = "Results/plots_reunion2406/zoom1_"+col+".png"
+    plt.savefig(path)
+    plt.show()
+
+# ###ZOOM IN ROI 2### Check if the peak exists for all the samples
+for k, col in enumerate(ph.columns):
+    if k==2:
+        label1 = "A susceptible sample"
+        label2 = "A random resistant sample"
+    else:
+        label1 = "A resistant sample"
+        label2 = "A random sensible sample"
+    plt.figure(figsize=[15,10])
+    plt.title("ZOOM IN: "+titulo[k]+" view")
+    plt.plot(range(7000,7500), res_samples[k][5000:5500], 'k--', label=label1)
+    plt.plot(range(7000,7500), sen_samples[k][5000:5500], 'k', label=label2)
+    for j,l in enumerate(lf[k]):
+        W_proj = W_maldi[:, l]*results[model_name].q_dist.W[1]['mean'][k,l]
+        plt.plot(range(7000,7500), W_proj[5000:5500], color=color[j], alpha=0.8, label="Latent feature "+str(l))
+    # plt.xticks(ticks=np.arange(2000,12000, 1000), labels=['2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000'])
+    plt.legend()
+    plt.grid()
+    path = "Results/plots_reunion2406/zoom2_"+col+".png"
+    plt.savefig(path)
+    plt.show()
+
+# ###ZOOM IN ROI 3### Check if the peak exists for all the samples
+for k, col in enumerate(ph.columns):
+    if k==2:
+        label1 = "A susceptible sample"
+        label2 = "A random resistant sample"
+    else:
+        label1 = "A resistant sample"
+        label2 = "A random sensible sample"
+    plt.figure(figsize=[15,10])
+    plt.title("ZOOM IN: "+titulo[k]+" view")
+    
+    plt.plot(range(9500,10000), res_samples[k][7500:8000], 'k--', label=label1)
+    plt.plot(range(9500,10000), sen_samples[k][7500:8000], 'k', label=label2)
+    for j,l in enumerate(lf[k]):
+        W_proj = W_maldi[:, l]*results[model_name].q_dist.W[1]['mean'][k,l]
+        plt.plot(range(9500,10000), W_proj[7500:8000], color=color[j], alpha=0.8, label="Latent feature "+str(l))
+    # plt.xticks(ticks=np.arange(2000,12000, 1000), labels=['2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000'])
+    plt.legend()
+    plt.grid()
+    path = "Results/plots_reunion2406/zoom3_"+col+".png"
+    plt.savefig(path)
+    plt.show()
 
 ################# Project to 3D
 
@@ -346,3 +429,5 @@ for k, col in enumerate(ph.columns):
 
 #     plt.show()
 
+
+# %%
