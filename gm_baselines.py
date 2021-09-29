@@ -12,8 +12,8 @@ from matplotlib import pyplot as plt
 ##################### PARAMETERS SELECTION ####################3
 # Which baseline do you want to use:
 randomforest = 0
-knn=1
-svm=0
+knn=0
+svm=1
 gp=0
 
 ########################## LOAD DATA ######################
@@ -31,7 +31,7 @@ fen = old_fen[['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
 maldi = gm_data['maldi'].loc[fen.index]
 
 # COLUMNS TO USE FROM HGM
-ab = gm_data['binary_ab'][['AMOXI/CLAV ', 'PIP/TAZO', 'CEFTAZIDIMA', 'CEFOTAXIMA', 'CEFEPIME', 'AZTREONAM', 'IMIPENEM', 'MEROPENEM', 'ERTAPENEM']].loc[fen.index]
+ab = gm_data['binary_ab'][['AMOXI/CLAV ', 'PIP/TAZO', 'CEFTAZIDIMA', 'CEFOTAXIMA', 'CEFEPIME', 'AZTREONAM', 'IMIPENEM']].loc[fen.index]
 
 
 ##################### TRAIN BASELINES AND PREDICT ######################
@@ -81,15 +81,15 @@ for f in range(len(folds["train"])):
         CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
     elif svm:
         from sklearn.svm import SVC
-        clf = SVC(probability=True, kernel="linear")
+        clf = SVC(probability=True, kernel="rbf")
         param_grid = {'C': [0.01, 0.1 , 1, 10]}
         CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
     elif gp:
         from sklearn.gaussian_process import GaussianProcessClassifier
-        # from sklearn.gaussian_process.kernels import DotProduct
-        # kernel= DotProduct()
-        # CV_rfc = GaussianProcessClassifier(kernel=kernel, n_jobs=-1)
-        CV_rfc = GaussianProcessClassifier(n_jobs=-1)
+        from sklearn.gaussian_process.kernels import DotProduct
+        kernel= DotProduct()
+        CV_rfc = GaussianProcessClassifier(kernel=kernel, n_jobs=-1)
+        # CV_rfc = GaussianProcessClassifier(n_jobs=-1)
 
     if randomforest:
         for c in range(y_tr.shape[1]):
@@ -114,7 +114,7 @@ for f in range(len(folds["train"])):
             results[f,c]=score
             if c<3:
                 phen[f, c] = score
-                feat_imp[f, c, :] = CV_rfc.best_estimator_.coef_
+                # feat_imp[f, c, :] = CV_rfc.best_estimator_.coef_
     else:
         for c in range(y_tr.shape[1]):
             CV_rfc.fit(x0_tr, y_tr[:, c])

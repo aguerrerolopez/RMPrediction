@@ -25,16 +25,19 @@ def notify_ending(message):
 # myKc = initial K dimension of latent space
 # pruning crit to prune K dimensiosn
 # max_it = maximum iterations to wait until convergence
-hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 100, "max_it": int(5000)}}
+hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 50, "max_it": int(5000)}}
 # If 1: PIKE kernel from Weis et al 2020 is used. If 0: you have to choose between linear or rbf.
 weis_et_al = 0
 # linear_or_rbf= 1 means linear, 0 means rbf
-linear_or_rbf = 1
+linear_or_rbf = 0
+# MKL: 
+mkl3 = 1
+mkl2 = 0
 
 ########################## LOAD DATA ######################
-folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensada_pruebaloca.pkl"
-data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
-store_path = "Results/normalizados/HGM_linear_normalizados_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
+folds_path = "./data/RYC_5STRATIFIEDfolds_paper.pkl"
+data_path = "./data/ryc_data_paper.pkl"
+store_path = "Results/normalizados/HRC_mkl2kernels_linpike_normalizados_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
 message = "CODIGO TERMINADO EN SERVIDOR: " +"\n Data used: " + data_path + "\n Folds used: " + folds_path +\
               "\n Storage name: "+store_path
 with open(data_path, 'rb') as pkl:
@@ -43,13 +46,10 @@ with open(folds_path, 'rb') as pkl:
     folds = pickle.load(pkl)
 
 ######### PREDICT CARB AND ESBL
-old_fen = gm_data['fen']
-old_fen = old_fen.drop(old_fen[old_fen['Fenotipo CP']==1].index)
-fen = old_fen[['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
+fen = gm_data['full'][['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
 
 maldi = gm_data['maldi'].loc[fen.index]
-cmi = gm_data['cmi'].loc[fen.index]
-ab = gm_data['binary_ab'].loc[fen.index]
+ab = gm_data['full'][['AMOXI/CLAV .1', 'PIP/TAZO.1', 'CEFTAZIDIMA.1', 'CEFOTAXIMA.1', 'CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1']].loc[fen.index]
 
 ############ PREDICT OTHER AB
 # maldi = gm_data['maldi']
@@ -78,8 +78,6 @@ for f in range(len(folds["train"])):
     x1 = np.vstack(x1_tr.values)
     # Familias
     y0 = np.vstack(y_tr.values)
-
-#%%
     if weis_et_al:
         x0_new = [[] for i in range(x0.shape[0])]
         for asig in range(x0.shape[0]):
@@ -88,21 +86,46 @@ for f in range(len(folds["train"])):
             topf_signal = np.concatenate((np.arange(2000,12000).reshape(-1, 1), x0[asig,:].reshape(-1,1)), axis=1)
             signal_transformed = transformer.fit_transform(topf_signal)
             x0_new[asig] = MaldiTofSpectrum(signal_transformed[signal_transformed[:,1]>0])
-            x0 = [MaldiTofSpectrum(x0_new[i]) for i in range(len(x0_new))]
+        x0 = [MaldiTofSpectrum(x0_new[i]) for i in range(len(x0_new))]
 
     # DECLARE KSSHIBA MODEL TO DECLARE EVERY DATA VIEW
     myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
 
     ##################### DECLARE EACH ONE OF THE DATA VIEW USED IN THIS PROBLEM ##########################
     # MALDI MS view: can be linear kernel, rbf kernel or pike kernel. You can also no use kernel but it is 10K features.
-    if linear_or_rbf:
-        kernel = "linear"
-    elif weis_et_al:
+    if mkl2:
+        kernel1 = "linear"
+        kernel2 = "rbf"
+    elif mkl3:
+        kernel1 = "linear"
+        kernel3 = "pike"
+
+    if weis_et_al:
         kernel = "pike"
-    else:
+    elif linear_or_rbf:
+        kernel = "linear"   
+    else: 
         kernel = "rbf"
     # method: reg because is a continuous input (aka regression), V is the support vectors of a kernel, here we are using all data
-    X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel=kernel)
+    if mkl2:
+        print("we should be using these kernels:")
+        print(kernel1)
+        print(kernel2)
+        X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel=kernel1)
+        X1 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel=kernel2)
+    elif mkl3:
+        X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel=kernel1)
+        x0_new = [[] for i in range(x0.shape[0])]
+        for asig in range(x0.shape[0]):
+            transformer= topf.PersistenceTransformer(n_peaks=400)
+            print("Preproccessing TOPF "+str(asig)+"/"+str(x0.shape[0]), end="\r")
+            topf_signal = np.concatenate((np.arange(2000,12000).reshape(-1, 1), x0[asig,:].reshape(-1,1)), axis=1)
+            signal_transformed = transformer.fit_transform(topf_signal)
+            x0_new[asig] = MaldiTofSpectrum(signal_transformed[signal_transformed[:,1]>0])
+        x0_pike = [MaldiTofSpectrum(x0_new[i]) for i in range(len(x0_new))]
+        X2 = myModel_mul.struct_data(x0_pike, method="reg", V=x0_pike, kernel=kernel3)
+    else:
+        X0 = myModel_mul.struct_data(x0, method="reg", V=x0, kernel=kernel)
     # if you want to use no kernel: X0 = myModel_mul.struct_data(x0, method="reg")
 
     # Resistance mechanisms view: a multilabel view
@@ -115,18 +138,34 @@ for f in range(len(folds["train"])):
     Y4 = myModel_mul.struct_data(y0[:, 4], method="mult")
     Y5 = myModel_mul.struct_data(y0[:, 5], method="mult")
     Y6 = myModel_mul.struct_data(y0[:, 6], method="mult")
-    Y7 = myModel_mul.struct_data(y0[:, 7], method="mult")
-    Y8 = myModel_mul.struct_data(y0[:, 8], method="mult")
 
     ##################### TRAIN THE MODEL ###################### 
     # THE OTHER OF THE VIEWS DO NOT REALLY MATTER IF YOU REMEMBER THE ORDER ONCE YOU WANT TO SEE THE RESULTS
-    myModel_mul.fit(X0,
-                    RM1,
-                    Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7, Y8,
-                    max_iter=hyper_parameters['sshiba']['max_it'],
-                    pruning_crit=hyper_parameters['sshiba']['pruning_crit'],
-                    verbose=1,
-                    feat_crit=1e-2)
+    if mkl2:
+        print("we should be fitting this")
+        myModel_mul.fit(X0, X1,
+                        RM1,
+                        # Y0, Y1, Y2, Y3, Y4, Y5, Y6,
+                        max_iter=hyper_parameters['sshiba']['max_it'],
+                        pruning_crit=hyper_parameters['sshiba']['pruning_crit'],
+                        verbose=1,
+                        feat_crit=1e-2)
+    elif mkl3:
+        myModel_mul.fit(X0, X2,
+                        RM1,
+                        #Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7, Y8,
+                        max_iter=hyper_parameters['sshiba']['max_it'],
+                        pruning_crit=hyper_parameters['sshiba']['pruning_crit'],
+                        verbose=1,
+                        feat_crit=1e-2)
+    else:
+        myModel_mul.fit(X0,
+                        RM1,
+                        Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7, Y8,
+                        max_iter=hyper_parameters['sshiba']['max_it'],
+                        pruning_crit=hyper_parameters['sshiba']['pruning_crit'],
+                        verbose=1,
+                        feat_crit=1e-2)
 
     model_name = "model_fold" + str(f)
     results[model_name] = myModel_mul
@@ -136,3 +175,4 @@ with open(store_path, 'wb') as f:
     pickle.dump(results, f)
 # SEND A MESSAGE TO MY TELEGRAM BOT
 notify_ending(message)
+# %%

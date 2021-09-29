@@ -23,41 +23,56 @@ full_data = pd.read_excel("./data/DB_conjunta.xlsx", engine='openpyxl')
 # READ DATA FROM FOLDS
 data_int = []
 id = []
-letter = ["A", "B", "BTS", "C", "D", "E", "F", "G", "H"]
+hosp = []
+letter = np.array(["A", "B", "C", "D", "E", "F", "G", "H"])
+number = np.array(["1", "2", "3", "4", "5", "6","7" , "8", "9", "10", "11"])
+hospital_procedence = np.array(np.arange(19))
+m = 5
+hospital_labels = (((hospital_procedence[:,None] & (1 << np.arange(m)))) > 0).astype(int)
 # CONVERT TO A PANDAS DATAFRAME
 for file in listOfFiles:
     print(file)
     t = mzml.read(file)
     a = next(t)
-    data_int.append(a["intensity array"][2000:12000])
     filename = file.split("/")[4]
     erase_end = filename.split(".")[0]
     if erase_end.split("_")[0] in letter:
+        data_int.append(a["intensity array"][2000:12000])
         id.append(erase_end.split("_")[0] + erase_end.split("_")[1])
-    else:
+        hosp.append(hospital_labels[11+np.where(letter == erase_end.split("_")[0])[0][0]])
+    elif erase_end.split("_")[0] in number:
+        data_int.append(a["intensity array"][2000:12000])
         id.append(erase_end.split("_")[0] + "-" + erase_end.split("_")[1])
+        hosp.append(hospital_labels[np.where(number == erase_end.split("_")[0])[0][0]])
+        
 
-ryc_data = pd.DataFrame(data=np.empty((len(data_int), 2)), columns=["Número de muestra", "maldi"])
+ryc_data = pd.DataFrame(data=np.empty((len(data_int), 3)), columns=["Número de muestra", "maldi", "Hospital"])
 ryc_data["maldi"] = data_int
 ryc_data["Número de muestra"] = id
+ryc_data["Hospital"] = hosp
 
 # AS EVERY BACTERIA HAS MORE THAN ONE MALDI MS WE SELECT THE MORE SIMILAR TO THE MEDIAN
 ryc_median = pd.DataFrame(data=np.vstack(data_int))
 ryc_median['id'] = id
+ryc_median["Hospital"] = hosp
 ryc_median = ryc_median.set_index('id')
+
 median_sample = ryc_median.groupby('id').median()
 
-ryc_data_1s = pd.DataFrame(data=np.empty((len(median_sample), 2)), columns=["Número de muestra", "maldi"])
+ryc_data_1s = pd.DataFrame(data=np.empty((len(median_sample), 3)), columns=["Número de muestra", "maldi", "Hospital"])
 ryc_data_1s['Número de muestra'] = median_sample.index
 ryc_data_1s = ryc_data_1s.set_index('Número de muestra')
 data_median = []
+hosp_unique = []
 for s in median_sample.index:
     print(s)
+    hosp_unique.append(ryc_median.loc[s]["Hospital"].sample(1).values[0])
     if ryc_median.loc[s].shape[0] == 10000:
-        data_median.append(ryc_median.loc[s].values)
+        data_median.append(ryc_median.loc[s].iloc[:, :-1].values)
     else:
-        data_median.append(ryc_median.loc[s].iloc[(median_sample.loc[s]-ryc_median.loc[s]).mean(axis=1).abs().argmin(), :].values)
+        data_median.append(ryc_median.iloc[:, :-1].loc[s].iloc[(median_sample.loc[s]-ryc_median.loc[s].iloc[:, :-1]).mean(axis=1).abs().argmin(), :].values)
 ryc_data_1s['maldi'] = data_median
+ryc_data_1s['Hospital'] = hosp_unique
 
 # RELEASE MEMORY
 del data_int, a, t, file, filename, id, filenames, letter, listOfFiles, erase_end, dirpath
@@ -136,7 +151,7 @@ ryc_full_data['CP gene'][ryc_full_data['CP gene']=='NDM-1']=0
 
 cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL', 'AMOXI/CLAV .1', 'PIP/TAZO.1', 'CEFTAZIDIMA.1', 'CEFOTAXIMA.1', 'CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1', 'CP gene']
 ryc_dict = {"maldi": ryc_full_data['maldi'].copy(),
-            "full": ryc_full_data[cols].copy()}
+            "full": ryc_full_data.copy()}
 
 with open("data/ryc_data_expAug.pkl", 'wb') as f:
     pickle.dump(ryc_dict, f)

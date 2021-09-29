@@ -13,10 +13,9 @@ excel_path = "./data/Reproducibilidad/Klebsiellas_Estudio_Reproducibilidad_rev.x
 # BOOLEAN TO NORMALIZE BY TIC
 tic_norm=True
 # IF YOU WANT ONLY CARB+ESBL DATA OR THE OTHER DATA
-carb_blee = 1
+cols = ['CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']
 
 ######################## READ AND PROCESS DATA ############################
-
 # READ DATA FROM FOLDS
 listOfFiles = list()
 for (dirpath, dirnames, filenames_rep) in os.walk(hgm_rep_mzml_path):
@@ -59,17 +58,13 @@ gm_median_1s['maldi'] = data_median
 
 # READ EXCEL DATA
 excel_data = pd.read_excel(excel_path, engine='openpyxl', dtype={'Nº Espectro': str})
-excel_data = excel_data.replace("R", np.float(1)).replace("BLEE", np.float(1)).replace("I", "S").replace("S", np.float(0)).replace("-", np.nan)
 
 # FINALLY JOIN THE MALDIs + AMR DATA INTO ONE DATAFRAME
 gm_full_data = pd.merge(how='outer', left=gm_median_1s, right=excel_data, left_on='Nº Espectro',
                         right_on='Nº Espectro').set_index("Nº Espectro")
 
 ################################ FOLDS CREATION ##########################
-if carb_blee:
-    cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL', 'AMOXI/CLAV ', 'PIP/TAZO', 'CEFTAZIDIMA', 'CEFOTAXIMA', 'CEFEPIME', 'AZTREONAM', 'IMIPENEM', 'MEROPENEM', 'ERTAPENEM']
-else:
-    cols = ['GENTAMICINA', 'TOBRAMICINA', 'AMIKACINA', 'FOSFOMICINA', 'CIPROFLOXACINO', 'COLISTINA']
+
 
 # GET RID OF MISSING SAMPLES FOR FOLD CREATION
 complete_samples = np.unique(gm_full_data[~gm_full_data[cols].isna().any(axis=1)].index)
@@ -77,10 +72,10 @@ missing_samples = np.unique(gm_full_data[gm_full_data[cols].isna().any(axis=1)].
 gm_complete_y = gm_full_data[cols].loc[complete_samples]
 
 # PATH TO SAVE FOLDS
-fold_storage_name = "data/HGM_10STRATIFIEDfolds_muestrascompensada_resto.pkl"
+fold_storage_name = "data/HGM_5STRATIFIEDfolds_muestrascompensada_resto.pkl"
 gm_folds = {"train": [], "val": []}
 # MULTILABEL STRATIFICATION FOLDS
-mskf = MultilabelStratifiedKFold(n_splits=10, shuffle=True, random_state=0)
+mskf = MultilabelStratifiedKFold(n_splits=5, shuffle=True, random_state=0)
 
 for tr_idx, tst_idx in mskf.split(complete_samples, gm_complete_y):
     train_samples = complete_samples[tr_idx].tolist()
@@ -117,7 +112,7 @@ for tr_idx, tst_idx in mskf.split(complete_samples, gm_complete_y):
 with open(fold_storage_name, 'wb') as f:
         pickle.dump(gm_folds, f)
 
-############################### NORMALIZE DATA AND STORE IT ##########################
+# ############################### NORMALIZE DATA AND STORE IT ##########################
 if tic_norm:
     print("TIC NORMALIZING gm DATA...")
     for i in range(gm_full_data["maldi"].shape[0]):

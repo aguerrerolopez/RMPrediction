@@ -468,7 +468,9 @@ class SSHIBA(object):
                 if self.fs:
                     self.feature_selection(feat_crit, perc)
             if verbose:
-                verboseprint('\rIteration %d Lower Bound %.1f K %4d' %(len(self.L),self.L[-1], q.Kc), end='\r', flush=True)
+                # verboseprint('\rIteration %d Lower Bound %.1f K %4d' %(len(self.L),self.L[-1], q.Kc), end='\r', flush=True)
+                verboseprint('\rIteration %d Lower Bound %.1f K %4d' %(len(self.L),self.L[-1], q.Kc))
+
             # Lower Bound convergence criteria
             cat_elbo = np.array(self.cat_loss)
             if len(cat_elbo.shape) > 1:
