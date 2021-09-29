@@ -1,4 +1,5 @@
-# Klebsiellas Pneumoniae Resistant Mechanisms and Antimicrobial Resistance Prediction library
+# Library that implements "Development and Validation of a MALDI-TOF-Based Model to Predict Extended-Spectrum Beta-Lactamase and/or Carbapenemase-Producing Klebsiella pneumoniae Clinical Isolates" paper
+
 
 ## Folder structure:
 
