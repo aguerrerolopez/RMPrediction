@@ -22,17 +22,19 @@
 *.json
 # Ignore logs
 *.log
-# Excel datasets
-*.xlsx
 # Papers
 *.pdf
-# Not public datasets
-data/
+# Datasets of mzml should be here but they are too big so we will upload them in a zip format
+data/RyC/mzml
+data/GM/mzml
 # Not public results
 Results/
 # Packing-only formats
 *.iso
 *.tar
+
+# R files
+*.R
 
 # Package management formats
 *.dmg

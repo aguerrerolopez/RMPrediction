@@ -6,9 +6,11 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from pyteomics import mzml
 
 # PATH TO MZML FILES
-ryc_path = "./data/Klebsiellas_RyC/"
+ryc_path = "./data/RyC/mzml"
+# PATH TO EXCEL FILE WHERE THE AST IS
+excel_path = "./data/RyC/RyC_AST.xlsx"
 # Columns to read from excel data
-cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL','AMOXI/CLAV .1','PIP/TAZO.1','CEFTAZIDIMA.1','CEFOTAXIMA.1','CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1']
+cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']
 # BOOLEAN TO NORMALIZE BY TIC
 tic_norm=True
 
@@ -17,14 +19,17 @@ tic_norm=True
 listOfFiles = list()
 for (dirpath, dirnames, filenames) in os.walk(ryc_path):
     listOfFiles += [os.path.join(dirpath, file) for file in filenames]
-# ============= READ FEN/GEN/AB INFO ============
-full_data = pd.read_excel("./data/DB_conjunta.xlsx", engine='openpyxl')
+
+# ============= READ AST INFO ============
+full_data = pd.read_excel(excel_path, engine='openpyxl')
 
 # READ DATA FROM FOLDS
 data_int = []
 id = []
 hosp = []
+# TAGS FOR SPANISH HOSPITALS
 letter = np.array(["A", "B", "C", "D", "E", "F", "G", "H"])
+# TAGS FOR PORTUGUESE HOSPITALS
 number = np.array(["1", "2", "3", "4", "5", "6","7" , "8", "9", "10", "11"])
 hospital_procedence = np.array(np.arange(19))
 m = 5
@@ -34,7 +39,7 @@ for file in listOfFiles:
     print(file)
     t = mzml.read(file)
     a = next(t)
-    filename = file.split("/")[4]
+    filename = file.split("/")[-1]
     erase_end = filename.split(".")[0]
     if erase_end.split("_")[0] in letter:
         data_int.append(a["intensity array"][2000:12000])
@@ -45,7 +50,7 @@ for file in listOfFiles:
         id.append(erase_end.split("_")[0] + "-" + erase_end.split("_")[1])
         hosp.append(hospital_labels[np.where(number == erase_end.split("_")[0])[0][0]])
         
-
+# CREATE A TAG FOR EACH HOSPITAL IN CASE YOU WANT TO IDENFITY THEM BY EACH HOSPITAL
 ryc_data = pd.DataFrame(data=np.empty((len(data_int), 3)), columns=["Número de muestra", "maldi", "Hospital"])
 ryc_data["maldi"] = data_int
 ryc_data["Número de muestra"] = id
@@ -77,21 +82,19 @@ ryc_data_1s['Hospital'] = hosp_unique
 # RELEASE MEMORY
 del data_int, a, t, file, filename, id, filenames, letter, listOfFiles, erase_end, dirpath
 
-# RYC FEN/GEN/AB
+# RYC AST DATA
 aux_ryc = full_data.loc[full_data['Centro'] == 'RyC'].copy().set_index("Número de muestra").drop('E11')
-aux_ryc['Fenotipo CP+ESBL'] = aux_ryc['Fenotipo CP+ESBL']+aux_ryc['Fenotipo CP']
-aux_ryc = aux_ryc.replace("R", np.float(1)).replace("I", "S").replace("S", np.float(0)).replace("-", np.nan)
 ryc_full_data = pd.merge(how='outer', left=ryc_data_1s, right=aux_ryc, left_on='Número de muestra', right_on='Número de muestra')
 
 ################################ FOLDS CREATION ##########################
 mskf = MultilabelStratifiedKFold(n_splits=5, shuffle=True, random_state=0)
-# GET RID OF MISSING SAMPLES FOR FOLD CREATION
+# GET RID OF MISSING SAMPLES FOR FOLD CREATION(if exists)
 complete_samples = np.unique(ryc_full_data[~ryc_full_data[cols].isna().any(axis=1)].index)
 missing_samples = np.unique(ryc_full_data[ryc_full_data[cols].isna().any(axis=1)].index).tolist()
 gm_complete_y = ryc_full_data[cols].loc[complete_samples]
 
 # PATH TO SAVE FOLDS
-fold_storage_name = "data/RYC_5STRATIFIEDfolds_muestrascompensada_experimentAug.pkl"
+fold_storage_name = "data/RYC_5STRATIFIEDfolds_paper.pkl"
 gm_folds = {"train": [], "val": []}
 
 for tr_idx, tst_idx in mskf.split(complete_samples, gm_complete_y):
@@ -116,7 +119,7 @@ for tr_idx, tst_idx in mskf.split(complete_samples, gm_complete_y):
             # ADD TO TEST DATA AND REMOVE FROM TRAIN DATA
             test_samples = test_samples+new_test_sample
             train_samples = [idx for idx in train_samples if idx not in test_samples]
-            print("Ahora debería estar correcto "+col)
+            print("It should be corrected now "+col)
             print(gm_complete_y[col].loc[test_samples].value_counts())  
     # CHECK THAT ANY TEST SAMPLES IS ALSO IN TRAIN
     for idx in test_samples:
@@ -149,7 +152,7 @@ ryc_full_data['CP gene'][ryc_full_data['CP gene']=='OXA-48+VIM-2']=1
 ryc_full_data['CP gene'][ryc_full_data['CP gene']=='KPC-3+VIM-2']=0
 ryc_full_data['CP gene'][ryc_full_data['CP gene']=='NDM-1']=0
 
-cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL', 'AMOXI/CLAV .1', 'PIP/TAZO.1', 'CEFTAZIDIMA.1', 'CEFOTAXIMA.1', 'CEFEPIME.1', 'AZTREONAM.1', 'IMIPENEM.1', 'CP gene']
+cols = ['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL', 'CP gene']
 ryc_dict = {"maldi": ryc_full_data['maldi'].copy(),
             "full": ryc_full_data.copy()}
 
