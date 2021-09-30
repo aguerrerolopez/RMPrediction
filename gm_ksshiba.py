@@ -2,7 +2,6 @@
 import pickle
 import sys
 import numpy as np
-from sklearn.metrics.pairwise import kernel_metrics
 sys.path.insert(0, "./lib")
 from lib import fast_fs_ksshiba_b_ord as ksshiba
 import json
@@ -11,7 +10,7 @@ from data import MaldiTofSpectrum
 import topf
 sys.path.append('../maldi_PIKE/maldi-learn/maldi_learn')
 
-# Telegram bot
+# Telegram bot: I have a telegram bot that sends me a message whenever the training has finished. Just dont pay attention to this if you dont want to use it.
 def notify_ending(message):
     with open('./keys_file.json', 'r') as keys_file:
         k = json.load(keys_file)
@@ -23,7 +22,7 @@ def notify_ending(message):
 ##################### PARAMETERS SELECTION ####################
 # Prune = to prune the latent space
 # myKc = initial K dimension of latent space
-# pruning crit to prune K dimensiosn
+# pruning crit to prune K dimensions
 # max_it = maximum iterations to wait until convergence
 hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 50, "max_it": int(5000)}}
 # If 1: PIKE kernel from Weis et al 2020 is used. If 0: you have to choose between linear or rbf.

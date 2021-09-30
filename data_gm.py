@@ -8,7 +8,7 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 # PATH TO MZML FILES
 hgm_rep_mzml_path = './data/GM/mzml'
 # PATH TO THE EXCEL FILE WITH ANTIBIOTIC RESISTANCE DATA
-excel_path = "./data/GM/Klebsiellas_Estudio_Reproducibilidad_rev.xlsx"
+excel_path = "./data/GM/GM_AST.xlsx"
 
 # BOOLEAN TO NORMALIZE BY TIC
 tic_norm=True

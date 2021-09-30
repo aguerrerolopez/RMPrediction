@@ -17,8 +17,8 @@ svm=1
 gp=0
 
 ########################## LOAD DATA ######################
-folds_path = "./data/HGM_10STRATIFIEDfolds_muestrascompensada_noCP.pkl"
-data_path = "./data/hgm_data_mediansample_only2-12_TIC.pkl"
+folds_path = "./data/GM_10STRATIFIEDfolds_paper.pkl"
+data_path = "./data/gm_data_paper.pkl"
 with open(folds_path, 'rb') as pkl:
     folds = pickle.load(pkl)
 with open(data_path, 'rb') as pkl:
@@ -26,46 +26,24 @@ with open(data_path, 'rb') as pkl:
 
 ###### PRED CARB BLEE
 old_fen = gm_data['fen']
-old_fen = old_fen.drop(old_fen[old_fen['Fenotipo CP']==1].index)
 fen = old_fen[['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
 maldi = gm_data['maldi'].loc[fen.index]
 
-# COLUMNS TO USE FROM HGM
-ab = gm_data['binary_ab'][['AMOXI/CLAV ', 'PIP/TAZO', 'CEFTAZIDIMA', 'CEFOTAXIMA', 'CEFEPIME', 'AZTREONAM', 'IMIPENEM']].loc[fen.index]
-
 
 ##################### TRAIN BASELINES AND PREDICT ######################
-results = np.zeros((10,15))
-phen = np.zeros((10,3))
-feat_imp = np.zeros((10,3,10000))
+results = np.zeros((10,3))
 
 for f in range(len(folds["train"])):
     print("Training fold: ", f)
 
-    ab = ab.fillna(ab.mean())
-    ab[ab>0.5] = 1
-    ab[ab<0.5] = 0
-    y_tr, y_val = ab.loc[folds["train"][f]], ab.loc[folds["val"][f]]
-    # y_tr, y_val = ab.loc[folds["train"][f]].dropna(), ab.loc[folds["val"][f]]
-
-    for idx in y_val.index:
-        print(idx in y_tr.index)
-    x0_tr, x0_val = maldi.loc[y_tr.index], maldi.loc[y_val.index]
-    ###### PRED CARB BLEE
-    ph_tr, ph_val = np.vstack(fen.loc[y_tr.index].values), np.vstack(fen.loc[y_val.index].values)
+    x0_tr, x0_val = maldi.loc[folds["train"][f]], maldi.loc[folds["val"][f]]
+    y_tr, y_val = np.vstack(fen.loc[folds["train"][f]].values), np.vstack(fen.loc[folds["val"][f]].values)
 
     x0_tr= np.vstack(x0_tr.values).astype(float)
     mean = np.mean(x0_tr)
     x0_tr /= mean
     x0_val = np.vstack(x0_val.values).astype(float)
     x0_val /= mean
-
-
-    y_tr = y_tr.values
-    y_val = y_val.values
-    # ###### PRED CARB BLEE
-    y_tr = np.hstack((ph_tr, y_tr))
-    y_val = np.hstack((ph_val, y_val))
 
     if randomforest:
         from sklearn.ensemble import RandomForestClassifier as RFC
@@ -87,8 +65,10 @@ for f in range(len(folds["train"])):
     elif gp:
         from sklearn.gaussian_process import GaussianProcessClassifier
         from sklearn.gaussian_process.kernels import DotProduct
+        # IF YOU WANT LINEAR KERNEL
         kernel= DotProduct()
         CV_rfc = GaussianProcessClassifier(kernel=kernel, n_jobs=-1)
+        # IF YOU WANT RBF KERNEL LET IT BE DEFAULT
         # CV_rfc = GaussianProcessClassifier(n_jobs=-1)
 
     if randomforest:
@@ -97,9 +77,6 @@ for f in range(len(folds["train"])):
             y_pred = CV_rfc.predict_proba(x0_val)[:, 1]
             score= auc(y_val[:, c], y_pred)
             results[f,c]=score
-            if c<3:
-                phen[f, c] = score
-                feat_imp[f, c, :] = CV_rfc.best_estimator_.feature_importances_
     
     elif svm:
         for c in range(y_tr.shape[1]):
@@ -112,50 +89,18 @@ for f in range(len(folds["train"])):
             y_pred = CV_rfc.predict_proba(x0_val)[:, 1]
             score= auc(y_val[:, c], y_pred)
             results[f,c]=score
-            if c<3:
-                phen[f, c] = score
-                # feat_imp[f, c, :] = CV_rfc.best_estimator_.coef_
     else:
         for c in range(y_tr.shape[1]):
             CV_rfc.fit(x0_tr, y_tr[:, c])
             y_pred = CV_rfc.predict_proba(x0_val)
             y_pred = y_pred[:,1]
             score= auc(y_val[:, c], y_pred)
-            if c<3:
-                phen[f, c] = score
-            else:
-                results[f,c-3] = score
+            results[f,c] = score
 
 
     print(results)
 
-print("Results AB")
+print("Results")
 print(results)
 print(np.mean(results, axis=0))
 print(np.std(results, axis=0))
-print("Results RM")
-print(phen)
-print(np.mean(phen, axis=0))
-print(np.std(phen, axis=0))
-
-
-feat_imp_mean = np.mean(feat_imp, axis=0)
-plt.figure(figsize=[15,10])
-plt.plot(range(2000,2500), feat_imp_mean[0, 0:500], label="CARB+ESBL")
-plt.plot(range(2000,2500), feat_imp_mean[1, 0:500], label="Only ESBL")
-plt.plot(range(2000,2500), feat_imp_mean[2, 0:500], label="Susceptible")
-plt.legend()
-
-feat_imp_mean = np.mean(feat_imp, axis=0)
-plt.figure(figsize=[15,10])
-plt.plot(range(7000,7500), feat_imp_mean[0, 5000:5500], label="CARB+ESBL")
-plt.plot(range(7000,7500), feat_imp_mean[1, 5000:5500], label="Only ESBL")
-plt.plot(range(7000,7500), feat_imp_mean[2, 5000:5500], label="Susceptible")
-plt.legend()
-
-feat_imp_mean = np.mean(feat_imp, axis=0)
-plt.figure(figsize=[15,10])
-plt.plot(range(9500,10000), feat_imp_mean[0, 7500:8000], label="CARB+ESBL")
-plt.plot(range(9500,10000), feat_imp_mean[1, 7500:8000], label="Only ESBL")
-plt.plot(range(9500,10000), feat_imp_mean[2, 7500:8000], label="Susceptible")
-plt.legend()
