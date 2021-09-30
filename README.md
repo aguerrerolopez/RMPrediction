@@ -45,7 +45,7 @@ The script is found in:
 ## Latent space:
 SSHIBA calculates a <img src="https://render.githubusercontent.com/render/math?math=W^{(m)}"> projection matrix associated to each view. However, when the view is kernelized it calculates the dual space projection matrix <img src="https://render.githubusercontent.com/render/math?math=A^{(m)}">, we have to recover the primal space <img src="https://render.githubusercontent.com/render/math?math=W^{(m)}"> projection matrix by doing: <img src="https://render.githubusercontent.com/render/math?math=W^{(m)} = X^{(m)T}A^{(m)}">. 
 This <img src="https://render.githubusercontent.com/render/math?math=W^{(m)}"> is a projection matrix of shape _DxK_ being _D_ the dimension of the data and _K_ the dimension of the latent space that SSHIBA decides by optimisation. Then, each _K_ column of the <img src="https://render.githubusercontent.com/render/math?math=W^{(m)}"> matrix is a projection weight vector associated to each dimension data point and can be interpretable. First, we can plot each the K columns by computing the mean over the D rows to show how every view is correlated to all the others views as we can see in Figure 2:
-![alt text](images_readme/both_latentspace.png)
+![alt text](images_readme/bothhospital_latentspace.png)
 
 This example is extracted from the intrahospital scenario shown in the paper.
 
