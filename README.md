@@ -24,12 +24,31 @@ Every scripts does the same. First, we read the data of the 3 days of the hospit
 The model used to learn the data is Sparse Semi-supervised Heterogeneous Interbattery Bayesian Analysis (**SSHIBA**) [[1]](#1) and its kernel approach kernelized-SSHIBA (**KSSHIBA**) [[2]](#2). SSHIBA is a Bayesian kernel model capable of jointly working with heterogeneous multi-view data such as continuous kernelized data or multilabel, as well as dealing with missing data in any view. For this work, two scenarios are found.
 
 ### Intrahospital scenario:
+The intrahospital scenario is presented in Figure 2.
+
 Still creating the plots... It will be here soon ;)
 
+This scenario works with 2 views:
+* <img src="https://render.githubusercontent.com/render/math?math=k_{n,:}^{m}">: MALDI MS kernelized (linear, rbf or pike) view.
+* <img src="https://render.githubusercontent.com/render/math?math=t_{n,:}^{1}">: Antibiotic resistance (CP+ESBL, ESBL, S) view
+
+In this scenario we use the KSSHIBA framework to: reduce dimensionality by using kernel trick, reduce training complex by kernel trick and latent space projection, get rid of cross-validation issues by Bayesian framework and obtain a predictive probability distribution. The model could also work with missing data, bassically, if you have missing data just put a "np.NaN" where the missing is and the model itself will impute this missing by using the predictive probability distribution.
+
+The difference between both datasets is just the number of samples (in this scenario). Therefore, the model will use 120 samples for RyC case and 282 for GM case. However, we implemented two differents scripts just because when we were trying out approaches we proposed, at the begining, different ideas for each hospital. Eventually, it developed in the same script with different data.
+
+The scripts are found in:
+* gm_ksshiba.py
+* ryc_ksshiba.py
+
+Moreover, the baselines proposed for this scenario can also be found in:
+* gm_baselines.py
+* ryc_baselines.py
+
+
 ### Interhospital scenario:
- The interhospital scenario is presented in Figure 2.
+ The interhospital scenario is presented in Figure 3.
 ![alt text](images_readme/interhospital.png)
-This scenario works with three views:
+This scenario works with 3 views:
 * <img src="https://render.githubusercontent.com/render/math?math=k_{n,:}^{m}">: MALDI MS kernelized (linear, rbf or pike) view.
 * <img src="https://render.githubusercontent.com/render/math?math=t_{n,:}^{1}">: Hospital Origin (GM or RyC) view.
 * <img src="https://render.githubusercontent.com/render/math?math=t_{n,:}^{2}">: Antibiotic resistance (CP+ESBL, ESBL, S) view
@@ -38,6 +57,9 @@ In this scenario we exploit the multiview framework of KSSHIBA and it is the maj
 
 The script is found in:
 * interhospital_ksshiba.py
+
+Moreover, the baselines proposed for this scenario can also be found in:
+* interhospital_baselines.py
 
 ## Results:
 
