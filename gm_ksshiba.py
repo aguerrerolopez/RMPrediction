@@ -48,7 +48,7 @@ old_fen = gm_data['fen']
 fen = old_fen[['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
 maldi = gm_data['maldi'].loc[fen.index]
 
-##################### TRAIN BASELINES AND PREDICT ######################
+##################### TRAIN MODEL AND PREDICT ######################
 results = {}
 for f in range(len(folds["train"])):
 
