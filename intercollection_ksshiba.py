@@ -25,7 +25,7 @@ def notify_ending(message):
 data_path = "./data/ryc_data_paper.pkl"
 with open(data_path, 'rb') as pkl:
     ramon_data = pickle.load(pkl)
-data_path = "./data/gm_data_paperpkl"
+data_path = "./data/gm_data_paper.pkl"
 with open(data_path, 'rb') as pkl:
     greg_data = pickle.load(pkl)
 
@@ -41,7 +41,7 @@ maldi_ramon = ramon_data['maldi'].loc[fen_ramon.index]
 # myKc = initial K dimension of latent space
 # pruning crit to prune K dimensions
 # max_it = maximum iterations to wait until convergence
-hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 50, "max_it": int(5000)}}
+hyper_parameters = {'sshiba': {"prune": 1, "myKc": 10, "pruning_crit": 50, "max_it": int(5000)}}
 # KERNEL SELECTION: pike, linear or rbf
 kernel = "linear" 
 
@@ -103,7 +103,7 @@ for r in range(5):
     maldi_view = np.vstack((x0_greg_train, x0_ramon_train, x0_greg_test, x0_ramon_test))
     indicator_view = np.vstack((x2_greg_train, x2_ramon_train, x2_greg_test, x2_ramon_test))
     # The ones that you want to predict are the ones that you DO NOT INCLUDE. The model will take them as "missing" and will predict them.
-    ast_view = np.vstack((x1_greg_train, x1_ramon_train))
+    ast_view = np.vstack((x1_greg_train, x1_ramon_train))[:, 0]
 
     ##### Declare the data as the model needs it:
     myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
@@ -134,7 +134,7 @@ for r in range(5):
 
     ##################### TRAIN THE MODEL ###################### 
     myModel_mul.fit(maldi_view,
-                    #indicator_view, ############# UNCOMMENT THIS LINE IF YOU WANT TO ADD THE EXTRA HOSPITAL COLLECTION OF ORIGIN VIEW
+                    indicator_view, ############# UNCOMMENT THIS LINE IF YOU WANT TO ADD THE EXTRA HOSPITAL COLLECTION OF ORIGIN VIEW
                     ast_view,
                     max_iter=hyper_parameters['sshiba']['max_it'],
                     pruning_crit=hyper_parameters['sshiba']['pruning_crit'],
@@ -151,6 +151,7 @@ for r in range(5):
     ramon_prediction = myModel_mul.t[2]['mean'][-n_ramon:,:]
     
     for res in range(3):
+        if res>0: break
         # PREDICT ONLY IN GREG
         auc_carb = roc_auc_score(x1_greg_test[:, res], greg_prediction[:, res])
         greg[res].append(auc_carb)
@@ -164,79 +165,77 @@ for r in range(5):
 print("######### RESULTS")
 print("AUC in GM collection")
 print("CP+ESBL: "+str(np.mean(greg[0]))+"+-"+str(np.std(greg[0])))
-print("ESBL: "+str(np.mean(greg[1]))+"+-"+str(np.std(greg[1])))
-print("WT: "+str(np.mean(greg[2]))+"+-"+str(np.std(greg[2])))
+# print("ESBL: "+str(np.mean(greg[1]))+"+-"+str(np.std(greg[1])))
+# print("WT: "+str(np.mean(greg[2]))+"+-"+str(np.std(greg[2])))
 
 print("AUC in RyC collection")
 print("CP+ESBL: "+str(np.mean(ramon[0]))+"+-"+str(np.std(ramon[0])))
-print("ESBL: "+str(np.mean(ramon[1]))+"+-"+str(np.std(ramon[1])))
-print("WT: "+str(np.mean(ramon[2]))+"+-"+str(np.std(ramon[2])))
+# print("ESBL: "+str(np.mean(ramon[1]))+"+-"+str(np.std(ramon[1])))
+# print("WT: "+str(np.mean(ramon[2]))+"+-"+str(np.std(ramon[2])))
 
-#### ANALYZE RESULTS: here we plotted the latent space, check it if you want to plot similar results.
-# #%%
+### ANALYZE RESULTS: here we plotted the latent space, check it if you want to plot similar results.
+#%%
 # import pickle
 # with open('./Results/both_hospital_latentfeatureanalysis.pkl', 'rb') as handle:
 #     b = pickle.load(handle)
 # X = b['X']
 # myModel_mul = b["model"]
 
-# from matplotlib import pyplot as plt
-# indicator_pos = 2
-# ####################################### PLOT THE LATENT SPACE FEATURES BY VIEW ###################################3
-# # K dimension of the latent space
-# k_len = len(myModel_mul.q_dist.alpha[indicator_pos]['b'])
-# # Reorder the features w.r.t the more important ones for the RM view
-# ord_k = np.argsort(myModel_mul.q_dist.alpha[indicator_pos]['a']/myModel_mul.q_dist.alpha[indicator_pos]['b'])
-# # Create the matrix to plot afterwards
-# matrix_views = np.zeros((len(myModel_mul.q_dist.W), myModel_mul.q_dist.W[0]['mean'].shape[1]))
-# # There are 3 views
-# n_rowstoshow = 3
-# matrix_views = np.zeros((n_rowstoshow+2, myModel_mul.q_dist.W[0]['mean'].shape[1]))
-# for z in range(n_rowstoshow):
-#     if z==0:
-#         # As the first view is kernel we have to go back to the primal space:
-#         W=X.T@myModel_mul.q_dist.W[0]['mean']
-#         matrix_views[z, :]=np.mean(np.abs(W), axis=0)[ord_k]
-#     if z>1:
-#         matrix_views[z, :]=np.abs(myModel_mul.q_dist.W[z]['mean'][0,:])[ord_k]
-#         matrix_views[z+1, :]=np.abs(myModel_mul.q_dist.W[z]['mean'][1,:])[ord_k]
-#         matrix_views[z+2, :]=np.abs(myModel_mul.q_dist.W[z]['mean'][2,:])[ord_k]
-#     else:
-#         matrix_views[z, :]=np.mean(np.abs(myModel_mul.q_dist.W[z]['mean']), axis=0)[ord_k]
+from matplotlib import pyplot as plt
+indicator_pos = 2
+####################################### PLOT THE LATENT SPACE FEATURES BY VIEW ###################################3
+# K dimension of the latent space
+k_len = len(myModel_mul.q_dist.alpha[indicator_pos]['b'])
+# Reorder the features w.r.t the more important ones for the RM view
+ord_k = np.argsort(myModel_mul.q_dist.alpha[indicator_pos]['a']/myModel_mul.q_dist.alpha[indicator_pos]['b'])
+# Create the matrix to plot afterwards
+matrix_views = np.zeros((len(myModel_mul.q_dist.W), myModel_mul.q_dist.W[0]['mean'].shape[1]))
+# There are 3 views
+n_rowstoshow = 3
+matrix_views = np.zeros((n_rowstoshow, myModel_mul.q_dist.W[0]['mean'].shape[1]))
+for z in range(n_rowstoshow):
+    if z==0:
+        # As the first view is kernel we have to go back to the primal space:
+        W=X.T@myModel_mul.q_dist.W[0]['mean']
+        matrix_views[z, :]=np.mean(np.abs(W), axis=0)[ord_k]
+    if z>1:
+        matrix_views[z, :]=np.abs(myModel_mul.q_dist.W[z]['mean'][0,:])[ord_k]
+    else:
+        matrix_views[z, :]=np.mean(np.abs(myModel_mul.q_dist.W[z]['mean']), axis=0)[ord_k]
 
-# titles_views = ['MALDI-TOF MS', 'HOSPITAL COLLECTION OF ORIGIN', 'WT', 'ESBL', 'ESBL+CP']
+titles_views = ['MALDI-TOF MS', 'HOSPITAL COLLECTION OF ORIGIN', 'WT', 'ESBL', 'ESBL+CP']
 
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
-# from matplotlib import cm
-# cmap = cm.get_cmap('Dark2', 9)
-# fig, ax = plt.subplots(3,1, figsize=(30,10), gridspec_kw={'height_ratios': [5, 5, 5]})
-# plt.setp(ax, xticks=range(0,len(ord_k)), xticklabels=[], yticks=[])
-# order=[2,0,1]
-# for v, o in enumerate(order):
-#     if o==2:
-#         ax[v].set_title("ANTIBIOTIC RESISTANCE view", color=cmap(v), fontsize=30)
-#         ax[v].text(x=20, y=2, s="Wild Type",fontsize=16,horizontalalignment='center', verticalalignment='center')
-#         ax[v].text(x=20, y=1, s="ESBL", fontsize=16,horizontalalignment='center', verticalalignment='center')
-#         ax[v].text(x=20, y=0, s="ESBL+CP", fontsize=16,horizontalalignment='center', verticalalignment='center')
-#     else: ax[v].set_title(titles_views[o]+" view", color=cmap(v), fontsize=30)
-#     ax[v].set_xlabel("K features", fontsize=24)
-#     # ax[v].tick_params(axis="x", labelsize=16) 
-#     if o==2:
-#         im = ax[v].imshow(matrix_views[o:,:], cmap="binary")
-#     else:
-#         im = ax[v].imshow(matrix_views[o,:][:, np.newaxis].T, cmap="binary")
-#     divider = make_axes_locatable(ax[v])
-#     cax = divider.append_axes('right', size='5%', pad=0.05)
-#     fig.colorbar(im, cax=cax, orientation='vertical')
-#     # ax[v].colorbar(im)
-#     # spath = "./Results/plots_reunion2406/"+view.replace(" ", "").replace("/","-")+"_19v_lfanalysis.png"
-#     # plt.savefig(spath)
-# plt.show()
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib import cm
+cmap = cm.get_cmap('Dark2', 9)
+fig, ax = plt.subplots(3,1, figsize=(30,10), gridspec_kw={'height_ratios': [5, 5, 5]})
+plt.setp(ax, xticks=range(0,len(ord_k)), xticklabels=[], yticks=[])
+order=[2,0,1]
+for v, o in enumerate(order):
+    if o==2:
+        ax[v].set_title("ANTIBIOTIC RESISTANCE view", color=cmap(v), fontsize=30)
+        ax[v].text(x=20, y=2, s="Wild Type",fontsize=16,horizontalalignment='center', verticalalignment='center')
+        ax[v].text(x=20, y=1, s="ESBL", fontsize=16,horizontalalignment='center', verticalalignment='center')
+        ax[v].text(x=20, y=0, s="ESBL+CP", fontsize=16,horizontalalignment='center', verticalalignment='center')
+    else: ax[v].set_title(titles_views[o]+" view", color=cmap(v), fontsize=30)
+    ax[v].set_xlabel("K features", fontsize=24)
+    # ax[v].tick_params(axis="x", labelsize=16) 
+    if o==2:
+        im = ax[v].imshow(matrix_views[o:,:], cmap="binary")
+    else:
+        im = ax[v].imshow(matrix_views[o,:][:, np.newaxis].T, cmap="binary")
+    divider = make_axes_locatable(ax[v])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    # ax[v].colorbar(im)
+    # spath = "./Results/plots_reunion2406/"+view.replace(" ", "").replace("/","-")+"_19v_lfanalysis.png"
+    # plt.savefig(spath)
+plt.show()
 
-# lf = [59, 46, 38]
-# plt.figure()
-# for l in lf:
-#     W_toplot = W[:, l]*myModel_mul.q_dist.W[1]['mean'][0,l]/1e4
-#     plt.plot(range(2000,12000), W_toplot, label="Latent feature "+str(l))
-# plt.legend()
-# plt.show()
+lf = [59, 46, 38]
+plt.figure()
+for l in lf:
+    W_toplot = W[:, l]*myModel_mul.q_dist.W[1]['mean'][0,l]/1e4
+    plt.plot(range(2000,12000), W_toplot, label="Latent feature "+str(l))
+plt.legend()
+plt.show()
