@@ -63,8 +63,8 @@ excel_data = pd.read_excel(excel_path, engine='openpyxl', dtype={'Nº Espectro':
 gm_full_data = pd.merge(how='outer', left=gm_median_1s, right=excel_data, left_on='Nº Espectro',
                         right_on='Nº Espectro').set_index("Nº Espectro")
 
+#%%
 ################################ FOLDS CREATION ##########################
-
 
 # GET RID OF MISSING SAMPLES FOR FOLD CREATION (IF EXISTS)
 complete_samples = np.unique(gm_full_data[~gm_full_data[cols].isna().any(axis=1)].index)

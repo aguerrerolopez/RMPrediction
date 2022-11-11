@@ -24,9 +24,9 @@ def notify_ending(message):
 # myKc = initial K dimension of latent space
 # pruning crit to prune K dimensions
 # max_it = maximum iterations to wait until convergence
-hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 50, "max_it": int(5000)}}
+hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-3, "max_it": int(5000)}}
 # KERNEL SELECTION: pike, linear or rbf
-kernel = "linear" 
+kernel = "rbf" 
 
 # Path to store the model. Then, we are going to use show_results.py to reload the model and see the results. In that way, you can launch as many options as your boss wants to.
 store_path = "Results/normalizados/HRC_mkl2kernels_linpike_normalizados_prun"+str(hyper_parameters['sshiba']["pruning_crit"])+".pkl"
@@ -49,6 +49,7 @@ maldi = gm_data['maldi'].loc[fen.index]
 
 ##################### TRAIN MODEL AND PREDICT ######################
 results = {}
+sig = []
 for f in range(len(folds["train"])):
 
     print("Training fold: ", f)
@@ -94,13 +95,14 @@ for f in range(len(folds["train"])):
                     pruning_crit=hyper_parameters['sshiba']['pruning_crit'],
                     verbose=1,
                     feat_crit=1e-2)
-
+    sig.append(myModel_mul.sig[0])
     model_name = "model_fold" + str(f)
     results[model_name] = myModel_mul
     
+print(np.mean(sig))
 # DUMP THE RESULTS INTO A pkl FILE
-with open(store_path, 'wb') as f:
-    pickle.dump(results, f)
+# with open(store_path, 'wb') as f:
+#     pickle.dump(results, f)
 
-# SEND A MESSAGE TO MY TELEGRAM BOT
-notify_ending(message)
+# # SEND A MESSAGE TO MY TELEGRAM BOT
+# notify_ending(message)

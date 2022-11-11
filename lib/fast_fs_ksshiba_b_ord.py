@@ -210,7 +210,7 @@ class SSHIBA(object):
                     from sklearn.metrics.pairwise import polynomial_kernel
                     data = polynomial_kernel(self.X[m]['X'], Y = self.V[m], degree = self.deg[m], gamma=arg['sig'])
                 elif self.k[m] == 'pike':
-                    self.kernel[m] = DiffusionKernel(sigma=10)
+                    self.kernel[m] = DiffusionKernel(sigma=5)
                     print("Creating PIKE kernel, this might take a while...")
                     data = self.kernel[m](self.X[m]['X'])
                     print("PIKE created")

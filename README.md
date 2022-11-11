@@ -1,4 +1,4 @@
-# Library that implements "Development and Validation of a MALDI-TOF-Based Model to Predict Extended-Spectrum Beta-Lactamase and/or Carbapenemase-Producing Klebsiella pneumoniae Clinical Isolates" paper
+# Library that implements "Automatic antibiotic resistance prediction in Klebsiella pneumoniae based on MALDI-TOF mass spectra" paper
 
 This GitHub presents the work done in this preprint [[4]](#4) that has been submitted to peer-reviewed journal and it is now under revision.
 
@@ -129,9 +129,9 @@ Sevilla-Salcedo, Carlos, Vanessa Gómez-Verdejo, and Pablo M. Olmos.
 Patern Recognition (2021).
 
 <a id="2">[2]</a>
-Sevilla-Salcedo, C., Guerrero-López, A., Olmos, P. M., & Gómez-Verdejo, V. (2020). 
-Bayesian Sparse Factor Analysis with Kernelized Observations. 
-arXiv preprint arXiv:2006.00968.
+Sevilla-Salcedo, C., Guerrero-López, A., Olmos, P. M., & Gómez-Verdejo, V. (2022). 
+Bayesian sparse factor analysis with kernelized observations.
+ Neurocomputing, 490, 66-78.
 
 <a id="3">[3]</a>
 Caroline Weis, Max Horn, Bastian Rieck†, Aline Cuénod, Adrian Egli, and Karsten Borgwardt. (2020). 
@@ -139,9 +139,9 @@ Topological and kernel-based microbial phenotype prediction from MALDI-TOF mass 
 Bioinformatics, Volume 36, Issue Supplement_1, July 2020, Pages i30–i38
 
 <a id="4">[4]</a>
-Alejandro Guerrero-López, Ana Candela, Carlos Sevilla-Salcedo, Marta Hernández-García, Pablo M. Olmos, Rafael Cantón, Patricia Muñoz, Rosa del Campo, Vanessa Gómez-Verdejo, Belen Rodríguez-Sánchez.
-Development and Validation of a MALDI-TOF-Based Model to Predict Extended-Spectrum Beta-Lactamase and/or Carbapenemase-Producing in Klebsiella pneumoniae Clinical Isolates
-https://www.biorxiv.org/content/10.1101/2021.10.04.463058v1
+Alejandro Guerrero-López, Carlos Sevilla-Salcedo, Ana Candela, Marta Hernández-García, Pablo M. Olmos, Rafael Cantón, Patricia Muñoz, Rosa del Campo, Vanessa Gómez-Verdejo, Belen Rodríguez-Sánchez.
+Automatic antibiotic resistance prediction in Klebsiella pneumoniae based on MALDI-TOF mass spectra
+https://www.biorxiv.org/content/10.1101/2021.10.04.463058
 
 
 

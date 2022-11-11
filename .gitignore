@@ -26,6 +26,8 @@
 *.pdf
 # Datasets of mzml should be here but they are too big so we will upload them in a zip format
 data/RyC/mzml
+data/RyC_maldiquant/
+data/GM_maldiquant/
 data/GM/mzml
 # Not public results
 Results/

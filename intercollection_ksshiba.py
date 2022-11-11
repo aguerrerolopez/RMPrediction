@@ -30,6 +30,7 @@ with open(data_path, 'rb') as pkl:
     greg_data = pickle.load(pkl)
 
 fen_greg = greg_data['full'][['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
+# fen_greg = greg_data['full'][['CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
 maldi_greg = greg_data['maldi'].loc[fen_greg.index]
 fen_ramon = ramon_data['full'][['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
 maldi_ramon = ramon_data['maldi'].loc[fen_ramon.index]
@@ -41,7 +42,7 @@ maldi_ramon = ramon_data['maldi'].loc[fen_ramon.index]
 # myKc = initial K dimension of latent space
 # pruning crit to prune K dimensions
 # max_it = maximum iterations to wait until convergence
-hyper_parameters = {'sshiba': {"prune": 1, "myKc": 10, "pruning_crit": 50, "max_it": int(5000)}}
+hyper_parameters = {'sshiba': {"prune": 1, "myKc": 100, "pruning_crit": 1e-2, "max_it": int(5000)}}
 # KERNEL SELECTION: pike, linear or rbf
 kernel = "linear" 
 
@@ -57,13 +58,14 @@ with open(folds_path, 'rb') as pkl:
 
 greg = [[], [], []]
 ramon = [[], [], []]
+sig = []
 ##################### TRAIN MODEL AND PREDICT ######################
 for r in range(5):
     print("Training model "+str(r))
     # Select train and test data
 
     ##### GM data
-    ## MALDI data
+    ## MALDI data.
     x0_tr, x0_val = maldi_greg.loc[folds_greg["train"][r]], maldi_greg.loc[folds_greg["val"][r]]
     x0_greg_train= np.vstack(x0_tr.values).astype(float)
     x0_greg_test = np.vstack(x0_val.values).astype(float)
@@ -103,7 +105,7 @@ for r in range(5):
     maldi_view = np.vstack((x0_greg_train, x0_ramon_train, x0_greg_test, x0_ramon_test))
     indicator_view = np.vstack((x2_greg_train, x2_ramon_train, x2_greg_test, x2_ramon_test))
     # The ones that you want to predict are the ones that you DO NOT INCLUDE. The model will take them as "missing" and will predict them.
-    ast_view = np.vstack((x1_greg_train, x1_ramon_train))[:, 0]
+    ast_view = np.vstack((x1_greg_train, x1_ramon_train))
 
     ##### Declare the data as the model needs it:
     myModel_mul = ksshiba.SSHIBA(hyper_parameters['sshiba']['myKc'], hyper_parameters['sshiba']['prune'], fs=1)
@@ -128,6 +130,7 @@ for r in range(5):
         maldi_view = myModel_mul.struct_data(maldi_view, method="reg")
     
     # Antibiotic Resistance mechanisms view: a multilabel view
+    print(ast_view.shape)
     ast_view = myModel_mul.struct_data(ast_view, method="mult")
     # HOSPITAL COLLECTION OF ORIGIN view: a multilabel view (binary)
     indicator_view = myModel_mul.struct_data(indicator_view, method="mult")
@@ -140,7 +143,7 @@ for r in range(5):
                     pruning_crit=hyper_parameters['sshiba']['pruning_crit'],
                     verbose=1,
                     feat_crit=1e-2)
-
+    sig.append(myModel_mul.sig[0])
     print("################ Results EXPERIMENT Resistant Mechanisms in both hospitals##################")
 
     ####### DO THE PREDICTION: the model has predicted it automatically because it found it missing. Therefore, the prediction is located
@@ -151,7 +154,6 @@ for r in range(5):
     ramon_prediction = myModel_mul.t[2]['mean'][-n_ramon:,:]
     
     for res in range(3):
-        if res>0: break
         # PREDICT ONLY IN GREG
         auc_carb = roc_auc_score(x1_greg_test[:, res], greg_prediction[:, res])
         greg[res].append(auc_carb)
@@ -165,21 +167,24 @@ for r in range(5):
 print("######### RESULTS")
 print("AUC in GM collection")
 print("CP+ESBL: "+str(np.mean(greg[0]))+"+-"+str(np.std(greg[0])))
-# print("ESBL: "+str(np.mean(greg[1]))+"+-"+str(np.std(greg[1])))
-# print("WT: "+str(np.mean(greg[2]))+"+-"+str(np.std(greg[2])))
+print("ESBL: "+str(np.mean(greg[1]))+"+-"+str(np.std(greg[1])))
+print("WT: "+str(np.mean(greg[2]))+"+-"+str(np.std(greg[2])))
 
 print("AUC in RyC collection")
 print("CP+ESBL: "+str(np.mean(ramon[0]))+"+-"+str(np.std(ramon[0])))
-# print("ESBL: "+str(np.mean(ramon[1]))+"+-"+str(np.std(ramon[1])))
-# print("WT: "+str(np.mean(ramon[2]))+"+-"+str(np.std(ramon[2])))
+print("ESBL: "+str(np.mean(ramon[1]))+"+-"+str(np.std(ramon[1])))
+print("WT: "+str(np.mean(ramon[2]))+"+-"+str(np.std(ramon[2])))
+
+print("SIGMA value")
+print(np.mean(sig))
 
 ### ANALYZE RESULTS: here we plotted the latent space, check it if you want to plot similar results.
 #%%
-# import pickle
-# with open('./Results/both_hospital_latentfeatureanalysis.pkl', 'rb') as handle:
-#     b = pickle.load(handle)
-# X = b['X']
-# myModel_mul = b["model"]
+#import pickle
+#with open('./Results/both_hospital_latentfeatureanalysis.pkl', 'rb') as handle:
+#    b = pickle.load(handle)
+#X = b['X']
+#myModel_mul = b["model"]
 
 from matplotlib import pyplot as plt
 indicator_pos = 2
@@ -203,7 +208,7 @@ for z in range(n_rowstoshow):
     else:
         matrix_views[z, :]=np.mean(np.abs(myModel_mul.q_dist.W[z]['mean']), axis=0)[ord_k]
 
-titles_views = ['MALDI-TOF MS', 'HOSPITAL COLLECTION OF ORIGIN', 'WT', 'ESBL', 'ESBL+CP']
+titles_views = ['MALDI-TOF MS', 'DOMAIN', 'WT', 'ESBL', 'ESBL+CP']
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import cm
@@ -239,3 +244,77 @@ for l in lf:
     plt.plot(range(2000,12000), W_toplot, label="Latent feature "+str(l))
 plt.legend()
 plt.show()
+
+# %%
+from matplotlib import pyplot as plt
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+ 
+tsne = TSNE(n_components=2, random_state=10)
+pca = PCA(n_components=2, random_state=42)
+
+z_tsne_hospital = tsne.fit_transform(myModel_mul.q_dist.Z['mean'].squeeze())
+z_pca_hospital = pca.fit_transform(myModel_mul.q_dist.Z['mean'].squeeze())
+#z_tsne_hospital = tsne.fit_transform(myModel_mul.q_dist.Z['mean'][:,np.where(np.abs(myModel_mul.q_dist.W[1]['mean'][0,:])>0.01)].squeeze())
+#z_pca_hospital = pca.fit_transform(myModel_mul.q_dist.Z['mean'][:,np.where(np.abs(myModel_mul.q_dist.W[1]['mean'][0,:])>0.01)].squeeze())
+
+colors = ['tab:red','tab:green']
+hospital_label = indicator_view['data'].squeeze().tolist()
+
+first_ryc = hospital_label.index(1)
+hospitals = np.vstack(ramon_data['full'].loc[folds_ramon["train"][r]]['Hospital'])
+samples_start = x0_greg_train.shape[0]
+samples_end= x0_greg_train.shape[0]+np.vstack(ramon_data['full'].loc[folds_ramon["train"][r]]['Hospital']).shape[0]
+hospitals = ['GM', 'RyC']
+ast =  ['ESBL+CP', 'ESBL', 'WT']
+
+plt.figure(figsize=[15,10])
+plt.title("TSNE projection of Z by domain view", fontsize=20)
+scatter1 = plt.scatter(z_tsne_hospital[:, 0][:first_ryc], z_tsne_hospital[:, 1][:first_ryc], c='tab:red', marker='x', label="GM domain")
+scatter2 = plt.scatter(z_tsne_hospital[:, 0][first_ryc:], z_tsne_hospital[:, 1][first_ryc:], c='tab:blue', marker='o', label="RyC domain")
+plt.legend(fontsize=20)
+plt.savefig('tsne_z_byhospital_withoutlabel.png')
+plt.show()
+
+plt.title("PCA projection of Z by domain")
+scatter1 = plt.scatter(z_pca_hospital[:, 0][:first_ryc], z_pca_hospital[:, 1][:first_ryc], c='tab:red', marker='x', label="GM domain")
+scatter2 = plt.scatter(z_pca_hospital[:, 0][first_ryc:], z_pca_hospital[:, 1][first_ryc:], c='tab:blue', marker='o', label="RyC domain")
+plt.legend()
+plt.show()
+
+
+# %%
+from matplotlib import pyplot as plt
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+
+tsne = TSNE(n_components=3, random_state=10)
+pca = PCA(n_components=3, random_state=42)
+
+z_tsne_ab = tsne.fit_transform(myModel_mul.q_dist.Z['mean'][:,np.where(np.abs(myModel_mul.q_dist.W[2]['mean'][0,:])>0.01)].squeeze())
+z_pca_ab = pca.fit_transform(myModel_mul.q_dist.Z['mean'][:,np.where(np.abs(myModel_mul.q_dist.W[2]['mean'][0,:])>0.01)].squeeze())
+
+colors = ['tab:red','tab:green']
+hospital_label = myModel_mul.t[1]['data'].squeeze().tolist()
+ast_label = np.argmax(np.vstack((x1_greg_train, x1_ramon_train, x1_greg_test, x1_ramon_test)), axis=1)
+
+first_ryc = hospital_label.index(1)
+hospitals = ['GM', 'RyC']
+ast =  ['ESBL+CP', 'ESBL', 'WT']
+
+fig = plt.figure(figsize=[15,10])
+plt.title("TSNE projection of Z by AR")
+ax = fig.add_subplot(111, projection='3d')
+scatter1 = ax.scatter(z_tsne_ab[:, 0][np.where(ast_label==0)], z_tsne_ab[:, 1][np.where(ast_label==0)], z_tsne_ab[:, 2][np.where(ast_label==0)], c='tab:red', marker='x', label="ESBL+CP")
+scatter2 = ax.scatter(z_tsne_ab[:, 0][np.where(ast_label==1)], z_tsne_ab[:, 1][np.where(ast_label==1)], z_tsne_ab[:, 2][np.where(ast_label==1)], c='tab:blue', marker='o', label="ESBL")
+scatter3 = ax.scatter(z_tsne_ab[:, 0][np.where(ast_label==2)], z_tsne_ab[:, 1][np.where(ast_label==2)], z_tsne_ab[:, 2][np.where(ast_label==2)], c='tab:green', marker='s', label="WT")
+plt.legend()
+plt.show()
+
+plt.title("PCA projection of Z by AR")
+scatter1 = plt.scatter(z_pca_ab[:, 0][np.where(ast_label==0)], z_pca_ab[:, 1][np.where(ast_label==0)], z_pca_ab[:, 2][np.where(ast_label==0)], c='tab:red', marker='x', label="ESBL+CP")
+scatter1 = plt.scatter(z_pca_ab[:, 0][np.where(ast_label==1)], z_pca_ab[:, 1][np.where(ast_label==1)], z_pca_ab[:, 2][np.where(ast_label==1)], c='tab:blue', marker='o', label="ESBL")
+scatter1 = plt.scatter(z_pca_ab[:, 0][np.where(ast_label==2)], z_pca_ab[:, 1][np.where(ast_label==2)], z_pca_ab[:, 2][np.where(ast_label==2)], c='tab:green', marker='s', label="WT")
+plt.legend()
+plt.show()
+# %%
