@@ -1,4 +1,4 @@
-# Library that implements "Development and Validation of a MALDI-TOF-Based Model to Predict Extended-Spectrum Beta-Lactamase and/or Carbapenemase-Producing Klebsiella pneumoniae Clinical Isolates" paper
+# Library that implements "Automatic antibiotic resistance prediction in Klebsiella pneumoniae based on MALDI-TOF mass spectra" paper
 
 This GitHub presents the work done in this preprint [[4]](#4) that has been submitted to peer-reviewed journal and it is now under revision.
 
