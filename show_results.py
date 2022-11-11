@@ -9,7 +9,7 @@ from sklearn.metrics import roc_auc_score
 phen_pos = 2
 
 # From which collection we want to see the results:
-ryc = 0
+ryc = 1
 hgm = 1
 
 ######################### LOAD DATA ########################################

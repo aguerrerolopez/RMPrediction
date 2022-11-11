@@ -1,3 +1,4 @@
+#%%
 import pickle
 import numpy as np
 import pandas as pd
@@ -86,7 +87,10 @@ del data_int, a, t, file, filename, id, filenames, letter, listOfFiles, erase_en
 aux_ryc = full_data.loc[full_data['Centro'] == 'RyC'].copy().set_index("Número de muestra").drop('E11')
 ryc_full_data = pd.merge(how='outer', left=ryc_data_1s, right=aux_ryc, left_on='Número de muestra', right_on='Número de muestra')
 
+
+#%%
 ################################ FOLDS CREATION ##########################
+ryc_full_data['Fenotipo ESBL']
 mskf = MultilabelStratifiedKFold(n_splits=5, shuffle=True, random_state=0)
 # GET RID OF MISSING SAMPLES FOR FOLD CREATION(if exists)
 complete_samples = np.unique(ryc_full_data[~ryc_full_data[cols].isna().any(axis=1)].index)

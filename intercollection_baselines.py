@@ -5,30 +5,22 @@ sys.path.append('../maldi_PIKE/maldi-learn/maldi_learn')
 import numpy as np
 sys.path.insert(0, "./lib")
 import json
-import telegram
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import roc_auc_score as auc
+import lightgbm as lgb
 
-# Telegram bot: I have a telegram bot that sends me a message whenever the training has finished. Just dont pay attention to this if you dont want to use it.
-def notify_ending(message):
-    with open('./keys_file.json', 'r') as keys_file:
-        k = json.load(keys_file)
-        token = k['telegram_token']
-        chat_id = k['telegram_chat_id']
-    bot = telegram.Bot(token=token)
-    bot.sendMessage(chat_id=chat_id, text=message)
 
 
 ################## LOAD DATA ###################3
 
-data_path = "./data/ryc_data_paper.pkl"
+data_path = "./data/ryc_data_processed.pkl"
 with open(data_path, 'rb') as pkl:
     ramon_data = pickle.load(pkl)
-data_path = "./data/gm_data_paper.pkl"
+data_path = "./data/gm_data_processed.pkl"
 with open(data_path, 'rb') as pkl:
     greg_data = pickle.load(pkl)
 
-fen_greg = greg_data['full'][['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
+fen_greg = greg_data['full'][['CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
 maldi_greg = greg_data['maldi'].loc[fen_greg.index]
 fen_ramon = ramon_data['full'][['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
 maldi_ramon = ramon_data['maldi'].loc[fen_ramon.index]
@@ -51,7 +43,11 @@ kernel = "rbf"
 randomforest = 0
 knn=0
 svm=0
-gp=1
+gp=0
+mlp=0
+lr = 0
+xgboost_flag = 1
+lgb_flag = 0
 
 ######## BUILD THE MODEL
 if randomforest:
@@ -63,6 +59,39 @@ if randomforest:
                         'criterion' :['gini']}
     # Intra 5 CV
     CV_rfc = GridSearchCV(estimator=clf, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
+elif lgb_flag:
+    lgbparams = {
+                'learning_rate': [0.005, 0.01],
+                'n_estimators': [8,16,24],
+                'num_leaves': [6,8,12,16], # large num_leaves helps improve accuracy but might lead to over-fitting
+                'boosting_type' : ['gbdt', 'dart'], # for better accuracy -> try dart
+                'objective' : ['binary'],
+                }
+    mdl = lgb.LGBMClassifier(boosting_type= 'gbdt', 
+                    objective = 'binary', 
+                    n_jobs = -1)
+    CV_rfc = GridSearchCV(mdl, lgbparams, verbose=2, cv=5, n_jobs=-1)
+elif mlp:
+    from sklearn.neural_network import MLPClassifier
+    parameter_space = {
+    'hidden_layer_sizes': [(500,100,10),(500,250,100)],
+    'activation': ['tanh', 'relu'],
+    'solver': ['adam'],
+    'alpha': [0.0001, 0.05],
+    'learning_rate': ['constant','adaptive']}
+    mlp_gs = MLPClassifier(max_iter=100)
+    CV_rfc = GridSearchCV(estimator=mlp_gs, param_grid=parameter_space, cv=5, n_jobs=-1, verbose=1)
+elif xgboost_flag:
+    from xgboost import XGBClassifier
+    params = {
+        'min_child_weight': [1, 5],
+        'gamma': [0.5, 1, 1.5],
+        'subsample': [0.6, 0.8],
+        'colsample_bytree': [0.6, 0.8],
+        'max_depth': [3, 4, 5]
+        }
+    xgb = XGBClassifier(learning_rate=0.02, n_estimators=100, objective='binary:logistic')
+    CV_rfc = GridSearchCV(estimator=xgb, param_grid=params, cv=5, verbose=1, n_jobs=-1)
 elif knn:
     from sklearn.neighbors import KNeighborsClassifier
     clf = KNeighborsClassifier(n_jobs=-1)
@@ -125,13 +154,13 @@ for r in range(5):
 
     # FIT AND PREDICT THE MODEL FOR EACH PREDICTION TASK
     for c in range(x1_ramon_train.shape[1]):
+    
         CV_rfc.fit(x_train, y_train[:, c])
-
         y_pred = CV_rfc.predict_proba(x0_greg_test)[:, 1]
-        greg[c].append(auc(x1_greg_test[:, c], y_pred))
+        y_pred_ramon = CV_rfc.predict_proba(x0_ramon_test)[:, 1]
 
-        y_pred = CV_rfc.predict_proba(x0_ramon_test)[:, 1]
-        ramon[c].append(auc(x1_ramon_test[:, c], y_pred))
+        greg[c].append(auc(x1_greg_test[:, c], y_pred))
+        ramon[c].append(auc(x1_ramon_test[:, c], y_pred_ramon))
 
 
 
