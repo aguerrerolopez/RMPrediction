@@ -2,8 +2,6 @@ import pickle
 import sys
 import numpy as np
 sys.path.insert(0, "./lib")
-import json
-import telegram
 sys.path.append('../maldi_PIKE/maldi-learn/maldi_learn')
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import roc_auc_score as auc
@@ -16,22 +14,28 @@ knn=0
 svm=1
 gp=0
 
+ryc=1
+gm = not(ryc)
+
 ########################## LOAD DATA ######################
-folds_path = "./data/GM_10STRATIFIEDfolds_paper.pkl"
-data_path = "./data/gm_data_paper.pkl"
+folds_path = "./data/RYC_5STRATIFIEDfolds_paper.pkl"
+data_path = "./data/ryc_data_processed.pkl"
 with open(folds_path, 'rb') as pkl:
     folds = pickle.load(pkl)
 with open(data_path, 'rb') as pkl:
    gm_data = pickle.load(pkl)
 
 ###### PRED CARB BLEE
-old_fen = gm_data['fen']
-fen = old_fen[['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
-maldi = gm_data['maldi'].loc[fen.index]
-
+if gm:
+    old_fen = gm_data['fen']
+    fen = old_fen[['CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
+    maldi = gm_data['maldi'].loc[fen.index]
+if ryc:
+    fen = gm_data['full'][['Fenotipo CP+ESBL', 'Fenotipo  ESBL', 'Fenotipo noCP noESBL']]
+    maldi = gm_data['maldi'].loc[fen.index]
 
 ##################### TRAIN BASELINES AND PREDICT ######################
-results = np.zeros((10,3))
+results = np.zeros((len(folds["train"]),3))
 
 for f in range(len(folds["train"])):
     print("Training fold: ", f)
